@@ -1,0 +1,21 @@
+<vertical id='settings-root' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:noNamespaceSchemaLocation='https://raw.githubusercontent.com/monkeymanboy/BSML-Docs/gh-pages/BSMLSchema.xsd'
+          child-control-height='false' child-expand-height='false'>
+  <list-setting text='~language-text' value='language' options='languages' apply-on-change='true' formatter='language-format' hover-hint='~language-hint'/>
+  <slider-setting text='~panel-scale-text' value='panel-scale' min='~panel-scale-min' max='~panel-scale-max' increment='0.1' apply-on-change='true' formatter='scale-format'
+                  hover-hint='~panel-scale-hint'/>
+  <slider-setting text='~panel-opacity-text' value='panel-opacity' min='~panel-opacity-min' max='1' increment='0.05' apply-on-change='true' formatter='percent-format'
+                  hover-hint='~panel-opacity-hint'/>
+  <increment-setting text='~mix-draft-count-text' value='mix-draft-count' min='1' max='20' increment='1' integer-only='true' apply-on-change='true'
+                     hover-hint='~mix-draft-count-hint'/>
+  <bool-setting text='~auto-download-text' value='auto-download' apply-on-change='true' hover-hint='~auto-download-hint'/>
+  <increment-setting text='~mix-prefetch-count-text' value='mix-prefetch-count' min='0' max='10' increment='1' integer-only='true' apply-on-change='true'
+                     hover-hint='~mix-prefetch-count-hint'/>
+  <bool-setting text='~auto-delete-text' value='auto-delete' apply-on-change='true' hover-hint='~auto-delete-hint'/>
+  <increment-setting text='~trial-expiry-text' value='trial-expiry' min='1' max='60' increment='1' integer-only='true' apply-on-change='true' formatter='launch-days-format'
+                     hover-hint='~trial-expiry-hint'/>
+  <increment-setting text='~trial-max-text' value='trial-max' min='1' max='100' increment='1' integer-only='true' apply-on-change='true' formatter='gigabytes-format'
+                     hover-hint='~trial-max-hint'/>
+  <!-- 推薦のまとめ（OctantPath.Core.Recommendations.FeedbackSummary）を UserData/OctantPath/summaries に書き出す -->
+  <button text='~export-text' on-click='export-click' hover-hint='~export-hint' preferred-width='60' preferred-height='8'/>
+  <text text='~export-result' font-size='3' align='Center' word-wrapping='true' preferred-width='100' preferred-height='8'/>
+</vertical>

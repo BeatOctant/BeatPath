@@ -1,0 +1,1174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OctantPath Desktop</title>
+<script>
+// テーマ: 設定で選んだもの（サーバーが desktop.json から data-theme-setting に入れる）。自動は OS のものに従い、OS で変えたらすぐ変える。描く前に決める
+(() => {
+  const root = document.documentElement;
+  const light = matchMedia('(prefers-color-scheme: light)');
+  const apply = () => {
+    const setting = root.dataset.themeSetting || 'auto';
+    root.dataset.theme = setting === 'auto' ? (light.matches ? 'light' : 'dark') : setting;
+  };
+  apply();
+  light.addEventListener('change', () => { apply(); window.themeChanged?.(); });
+  window.useTheme = (setting) => { root.dataset.themeSetting = setting; apply(); };
+})();
+</script>
+<style>
+  /* 色は OctantCompass の窓（src/octantcompass/ui/index.html）と同じ。テーマはダークとライト（自動は OS に従う。2026-10-19）。
+     色の見え方が違っても使えるよう、状態の色は赤と緑で分けず、青緑・黄・朱にして明るさも変え、色だけに頼らず形（接続の印）と文でも分ける。
+     文字は背景に対して 4.5:1 以上 */
+  :root {
+    color-scheme: dark;  /* 入力欄やスクロールのつまみなど、OS の部品も暗い色で（Linux の WebKitGTK は明るいまま出す） */
+    --bg: #0f1115;
+    --surface: #171a21;
+    --surface2: #1e222b;
+    --hover: #262b36;
+    --line: #2a2f3a;
+    --text: #e8eaed;
+    --muted: #9aa2b1;
+    --accent: #4c9aff;
+    --accent-weak: rgba(76, 154, 255, 0.16);
+    --primary: #2f74d6;
+    --primary-hover: #2563c4;
+    --on-primary: #ffffff;
+    --ok: #2fbf9f;
+    --warn: #e3b341;
+    --bad: #ff7a59;
+    --scroll: #343a46;
+    --scroll-hover: #4a5262;
+    --code: #c9d1d9;
+    --shadow: rgba(0, 0, 0, 0.4);
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --surface2: #f0f2f5;
+    --hover: #e6e9ef;
+    --line: #d8dce3;
+    --text: #1a1d23;
+    --muted: #59616e;
+    --accent: #0b63ce;
+    --accent-weak: rgba(11, 99, 206, 0.10);
+    --primary: #0b63ce;
+    --primary-hover: #0a56b3;
+    --on-primary: #ffffff;
+    --ok: #007360;
+    --warn: #8a5c00;
+    --bad: #c4320a;
+    --scroll: #c4c9d2;
+    --scroll-hover: #a9b0bc;
+    --code: #2b313b;
+    --shadow: rgba(15, 20, 30, 0.15);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.5 "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif; }
+  button { font: inherit; color: inherit; }
+  /* スクロールのつまみ: 細く、地に溶ける色。触れたときだけ少し明るく（Chromium は scrollbar-color を書くと下の指定を使わないので書かない） */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 4px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scroll-hover); background-clip: padding-box; }
+  ::-webkit-scrollbar-corner { background: transparent; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12.5px; }
+
+  /* 画面の作り（流れの順に左から右へ）:
+     左 = 所有マップ（曲を押すとそのまま起点になる） → 中 = 起点の曲の詳細と難易度、その下に種類 → 右半分 = 下見（上）とプレビュー（下） */
+  /* 幅は窓の幅まで（上の帯の長い文で広がらず、帯の中で「…」にする）。
+     この画面が崩れずに出る最小の大きさ（2026-10-19: 720p）は、サーバーが html に入れる（WindowMinSize。窓もこれより小さくしない）。
+     ページは全体では動かず、欄の中だけが動く。画面そのものがこれより小さいときだけ、ページごと動く */
+  .app { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); height: 100vh; min-width: var(--page-min-width); min-height: var(--page-min-height); }
+  .top { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--surface); }
+  .top .brand { font-weight: 700; letter-spacing: .02em; margin-right: 6px; white-space: nowrap; }
+  /* 何が動いているかをすぐ分かるよう、名前の横に版とコミットを出す（2026-10-13。OctantCompass の窓と同じ） */
+  .top .brand .ver { font-weight: 400; letter-spacing: 0; font-size: 12px; color: var(--muted); margin-left: 6px; }
+  /* 画面の切り替え（OctantCompass の窓の「状態」「詳細設定」と同じ形） */
+  .tabs { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; flex: none; }
+  .tabs button { background: transparent; border: 0; padding: 4px 12px; cursor: pointer; font-size: 13px; color: var(--muted); }
+  .tabs button.on { background: var(--accent-weak); color: var(--text); font-weight: 600; }
+  [hidden] { display: none !important; }
+  .top .header { flex: 1; min-width: 0; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .conn { display: flex; align-items: center; gap: 7px; font-size: 12.5px; white-space: nowrap; min-width: 0; }
+  #conn-text { overflow: hidden; text-overflow: ellipsis; }
+  /* 接続の印は色と形で: つながっている＝塗った丸、途中＝輪、届かない＝菱形 */
+  .dot { width: 8px; height: 8px; flex: none; background: var(--bad); border-radius: 1px; transform: rotate(45deg) scale(.85); }
+  .dot.ok { background: var(--ok); border-radius: 50%; transform: none; }
+  .dot.mid { background: transparent; border: 2px solid var(--warn); border-radius: 50%; transform: none; }
+  /* キーボードで動かしたとき、どこにいるかが見えるように */
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  input.text:focus-visible { outline: none; }
+  /* 左の 2 列は窓の幅に合わせて 280〜400px、残りを右半分に（最小の幅 1280px でも、右の下見と譜面に 680px を残す） */
+  .cols { display: grid; grid-template-columns: clamp(280px, 21vw, 400px) clamp(280px, 21vw, 400px) minmax(0, 1fr); gap: 10px; padding: 10px; min-height: 0; }
+  .right { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1.1fr); gap: 10px; min-height: 0; min-width: 0; }
+  .right > * { min-width: 0; }
+  .col { display: flex; flex-direction: column; min-height: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  /* 下見の見出しは横に起点と題を並べるので .draft-head の中にある。ほかの欄の見出しと同じ形にする */
+  .col > h2, .draft-head > h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; margin: 0 0 10px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .col > h2 .count { font-weight: 400; letter-spacing: 0; text-transform: none; }
+  .empty { margin: auto; padding: 24px; color: var(--muted); text-align: center; }
+
+  input.text { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 6px 9px; font: inherit; outline: none; }
+  input.text:focus { border-color: var(--accent); }
+  select.lang { background: var(--surface2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; color: var(--text); font: inherit; cursor: pointer; }
+  /* 選ぶ欄は OS の部品の色（Linux の WebKitGTK では白）にせず、矢印も自分で描く（OctantCompass の窓と同じ） */
+  select { appearance: none; -webkit-appearance: none; padding-right: 26px !important;
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%) !important;
+    background-position: right 13px center, right 9px center !important; background-size: 4px 4px !important; background-repeat: no-repeat !important; }
+  .btn { background: var(--surface2); border: 1px solid var(--line); border-radius: 6px; padding: 5px 12px; cursor: pointer; white-space: nowrap; }
+  .btn:hover:not(:disabled) { background: var(--hover); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 600; }
+  .btn.primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface2); cursor: pointer; font-size: 12.5px; }
+  .chip:hover { background: var(--hover); }
+  .chip.on { background: var(--accent-weak); border-color: var(--accent); font-weight: 600; }
+
+  /* 曲の行（所有マップと下見） */
+  .list { overflow: auto; min-height: 0; flex: 1; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+  .row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--line); cursor: pointer; border-left: 3px solid transparent; }
+  .row:hover { background: var(--surface2); }
+  .row.sel { background: var(--accent-weak); border-left-color: var(--accent); }
+  .row img, .row .noimg { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; background: var(--surface2); }
+  .row .t { min-width: 0; }
+  .row .t .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .t .sub { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .d { font-size: 12.5px; text-align: right; white-space: nowrap; color: var(--muted); }
+  .row .d .st { display: block; font-size: 12px; }
+  .st.received { color: var(--ok); }
+  .st.installed { color: var(--accent); }
+  .st.receiving { color: var(--warn); }
+  .st.unavailable { color: var(--bad); }
+  /* マッパーは所有マップの行と同じく、アーティストの後ろに書く（最小の幅でも曲名が読めるよう、列を分けない） */
+  .draft .row { grid-template-columns: 22px 44px minmax(0, 1fr) 150px auto; }
+  .draft .row .n { color: var(--muted); font-size: 12px; text-align: right; }
+  .row .acts { display: flex; gap: 2px; }
+  .sym { width: 30px; height: 30px; border-radius: 6px; border: 1px solid transparent; background: transparent; cursor: pointer; font-size: 15px; color: var(--muted); }
+  .sym:hover:not(:disabled) { background: var(--hover); border-color: var(--line); color: var(--text); }
+  .sym:disabled { opacity: .3; cursor: default; }
+  input.text.lib-q { flex: none; width: 100%; margin-bottom: 8px; }
+  .lib-more { text-align: center; padding: 8px; }
+
+  /* 起点の曲 */
+  .seed-form { display: flex; gap: 6px; }
+  /* 起点の曲・種類・置き場所は 1 つにまとめて動かす（欄の中で動く枠を 1 つにする。2026-10-19） */
+  .seed-body { flex: 1; min-height: 0; overflow: auto; margin-top: 10px; }
+  .seed { padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .seed .card { display: grid; grid-template-columns: 96px 1fr; gap: 12px; }
+  .seed .card img, .seed .card .noimg { width: 96px; height: 96px; border-radius: 8px; object-fit: cover; background: var(--surface2); }
+  .seed .card > div { min-width: 0; }
+  .seed .title { font-weight: 700; font-size: 16px; line-height: 1.3; word-break: break-word; }
+  .seed .diffs { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0 8px; }
+  .label-sm { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
+
+  /* 種類 */
+  .types { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+  .types .heading { font-size: 11.5px; color: var(--muted); margin: 8px 2px 2px; }
+  .types .heading.big { font-size: 12px; color: var(--text); font-weight: 700; margin-top: 4px; }
+  .types .heading.big ~ .heading.big { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .tile { width: 100%; padding: 7px 12px; border-radius: 6px; cursor: pointer; background: var(--surface2); border: 1px solid var(--line); text-align: left; display: flex; align-items: baseline; gap: 10px; }
+  .tile:hover:not(:disabled) { border-color: var(--accent); background: var(--hover); }
+  .tile:disabled { opacity: .4; cursor: default; }
+  .tile.on { border-color: var(--accent); background: var(--accent-weak); }
+  .tile .label { font-weight: 600; }
+  .tile .hint { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .options { margin: 2px 0 6px 12px; padding-left: 10px; border-left: 2px solid var(--accent); display: flex; flex-direction: column; gap: 4px; }
+  .options .ask { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
+  .options .ask a { color: var(--accent); cursor: pointer; }
+  .options .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .where { margin-top: 10px; font-size: 11px; color: var(--muted); word-break: break-all; border-top: 1px solid var(--line); padding-top: 8px; }
+
+  /* 下見 */
+  .draft-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; min-width: 0; }
+  .draft-head > h2 { flex: none; }
+  .draft-head > .seedline, .draft-head > .title { min-width: 0; }
+  .draft-head .seedline { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .draft-head .title { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .draft-foot { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .draft-detail { flex: 1; min-width: 0; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .progress { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; width: 200px; display: none; }
+  .progress.on { display: block; }
+  .progress > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+
+  /* プレビュー: 左に曲の情報と理由、右に ArcViewer。曲の情報は欄の幅に合わせて 240〜380px で、譜面の窓に残りを渡す */
+  .pv { display: grid; grid-template-columns: clamp(240px, 36%, 380px) minmax(0, 1fr); gap: 12px; min-height: 0; flex: 1; }
+  .pinfo { overflow: auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+  .pinfo .head { display: grid; grid-template-columns: 84px 1fr; gap: 12px; }
+  .pinfo .head img, .pinfo .head .noimg { width: 84px; height: 84px; border-radius: 8px; object-fit: cover; background: var(--surface2); }
+  .pinfo h3 { margin: 0; font-size: 16px; line-height: 1.3; }
+  .section-title { font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 12.5px; margin: 0; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; word-break: break-all; }
+  .bars { display: flex; flex-direction: column; gap: 4px; }
+  .bar { display: grid; grid-template-columns: 150px 1fr 40px; gap: 6px; align-items: center; font-size: 12px; }
+  /* 長い名前はグラフに重ねず「…」で切り、全部は指を置いたときに出す（2026-10-13） */
+  .bar > .k { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar .track { height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .bar .track > div { height: 100%; background: var(--accent); }
+  .viewer { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg); display: flex; min-height: 0; }
+  /* ArcViewer は暗い地で描くので、読み込むあいだもテーマによらず黒にする */
+  .viewer iframe { border: 0; width: 100%; height: 100%; background: #000; }
+  .viewer .ph { margin: auto; color: var(--muted); font-size: 13px; text-align: center; padding: 16px; }
+
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--surface2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 18px; max-width: 640px; text-align: center; box-shadow: 0 8px 24px var(--shadow); display: none; z-index: 20; white-space: pre-line; }
+  .toast.on { display: block; }
+  .wire { position: fixed; right: 12px; top: 52px; width: 640px; max-height: 70vh; display: none; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; z-index: 15; box-shadow: 0 8px 24px var(--shadow); }
+  .wire.on { display: flex; }
+  .wire .bar2 { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--line); font-size: 12px; }
+  .wire pre { margin: 0; padding: 10px; overflow: auto; font-size: 12px; color: var(--code); white-space: pre-wrap; word-break: break-all; }
+  /* 設定（OctantCompass の窓の詳細設定と同じ部品） */
+  /* 2 つの欄は下まで同じ高さに揃える（2026-10-19。OctantCompass の窓の詳細設定と同じ）。
+     このタブで動く枠は .settings の 1 つで、中身が窓より高ければ 2 つの欄をまとめて動かす */
+  .settings { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); grid-template-rows: minmax(min-content, 1fr); gap: 10px; padding: 10px; min-height: 0; overflow: auto; }
+  .set { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .set .name .key { display: block; font-size: 11px; color: var(--muted); font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  .set .val { word-break: break-all; }
+  .set .val .def { display: block; font-size: 12px; color: var(--muted); }
+  .set .btn { padding: 3px 10px; font-size: 12.5px; }
+  .editor { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-left: 2px solid var(--accent); background: var(--bg); border-radius: 0 6px 6px 0; }
+  .editor .help { font-size: 12px; color: var(--muted); white-space: pre-line; }
+  .editor .row2 { display: flex; gap: 6px; align-items: center; }
+  .editor .err { color: var(--bad); font-size: 12px; }
+  .group { font-size: 11.5px; color: var(--muted); margin: 12px 0 2px; }
+  .group:first-child { margin-top: 0; }
+  .note { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+  .settings .kv { font-size: 13px; gap: 3px 14px; }
+  .pair { display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; margin-bottom: 18px; }
+  .pair label { display: flex; flex-direction: column; gap: 4px; }
+  .pair .note { margin-top: 0; }
+  .conn.link { cursor: pointer; }
+  .conn.link #conn-text { text-decoration: underline dotted; text-underline-offset: 3px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <span class="brand">OctantPath Desktop<span class="ver" id="brand-ver"></span></span>
+    <nav class="tabs" id="tabs"><button data-tab="main" class="on" data-t="tab.main"></button><button data-tab="settings" data-t="tab.settings"></button></nav>
+    <div class="header" id="header-text"></div>
+    <select class="lang" id="lang" data-t-title="lang.title"></select>
+    <select class="lang" id="theme" data-t-title="theme.title"></select>
+    <!-- 接続のランプは右の操作の横（OctantCompass の窓と同じ並び。2026-10-13） -->
+    <div class="conn" id="conn"><span class="dot" id="conn-dot"></span><span id="conn-text" data-t="top.checking"></span></div>
+    <button class="btn" id="reload-btn" data-t-title="top.reloadTitle" data-t="top.reload"></button>
+    <button class="btn" id="wire-btn" data-t-title="top.wireTitle" data-t="top.wire"></button>
+  </header>
+
+  <div class="cols" id="tab-main">
+    <!-- 1. 所有マップ: 曲を押すと、その曲が起点になる -->
+    <section class="col">
+      <h2><span data-t="library.title"></span> <span class="count" id="library-title"></span></h2>
+      <input class="text lib-q" id="library-q" data-t-ph="library.search" autocomplete="off">
+      <!-- マップの置き場所（ゲーム／Desktop）は曲の分類に見えて、起点を選ぶのにも要らないので出さない（2026-10-13） -->
+      <div class="list" id="library-list"></div>
+    </section>
+
+    <!-- 2. 起点の曲（詳細と難易度）と種類 -->
+    <section class="col">
+      <h2 data-t="seed.title"></h2>
+      <form class="seed-form" id="seed-form">
+        <input class="text" id="seed-input" data-t-ph="seed.input" autocomplete="off">
+        <button class="btn" type="submit" data-t="seed.pick"></button>
+      </form>
+      <div class="seed-body" id="seed-body">
+        <div class="seed" id="seed"></div>
+        <div class="types" id="types"></div>
+        <div class="where" id="where"></div>
+      </div>
+    </section>
+
+    <!-- 3. 右半分: 下見（上）とプレビュー（下） -->
+    <div class="right">
+      <section class="col draft">
+        <div class="draft-head">
+          <h2 style="margin:0" data-t="draft.title"></h2>
+          <div class="seedline" id="draft-seed"></div>
+          <div class="title" id="draft-title"></div>
+        </div>
+        <div class="list" id="draft-list"><div class="empty" data-t="draft.empty"></div></div>
+        <div class="draft-foot">
+          <div class="draft-detail" id="draft-detail"></div>
+          <div class="progress" id="progress"><div id="progress-fill"></div></div>
+          <button class="btn" id="draft-close" disabled data-t-title="draft.clearTitle" data-t="draft.clear"></button>
+          <button class="btn primary" id="draft-create" disabled data-t-title="draft.createTitle" data-t="draft.create"></button>
+          <!-- 作ったプレイリストのファイルをブラウザのダウンロードで受け取る。作るの隣に置き、名前で違いが分かるようにする（2026-10-13） -->
+          <button class="btn" id="save-btn" disabled data-t-title="top.saveTitle" data-t="top.save"></button>
+        </div>
+      </section>
+      <section class="col preview">
+        <h2><span data-t="preview.title"></span> <span class="count" id="preview-from"></span></h2>
+        <div class="pv">
+          <div class="pinfo" id="pinfo"><div class="empty" data-t="preview.empty"></div></div>
+          <div class="viewer" id="viewer"><div class="ph" data-t="preview.viewerPlaceholder"></div></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- 設定（2026-10-13）: 左に settings.json の項目、右にこの Desktop の情報 -->
+  <div class="settings" id="tab-settings" hidden>
+    <section class="col">
+      <h2 data-t="settings.title"></h2>
+      <div id="settings"></div>
+      <div class="note" id="settings-note"></div>
+    </section>
+    <section class="col">
+      <!-- 契約6（client to OctantCompass）2.0: つなぐ先と OctantCompass の画面に出る合言葉でペアリングする（同じ PC でも同じ）。
+           一度つなげば済むので、上の帯ではなく設定に置く（2026-10-13） -->
+      <h2 data-t="pair.title"></h2>
+      <div class="pair" id="pair">
+        <label><span data-t="pair.address"></span><input class="text" id="pair-address" data-t-ph="pair.addressPh" autocomplete="off"></label>
+        <label><span data-t="pair.code"></span><input class="text" id="pair-code" inputmode="numeric" autocomplete="off"></label>
+        <div class="note" data-t="pair.note"></div>
+        <div><button class="btn primary" id="pair-go" data-t="pair.go"></button></div>
+      </div>
+      <h2 data-t="info.title"></h2>
+      <dl class="kv" id="info"></dl>
+    </section>
+  </div>
+</div>
+
+<div class="wire" id="wire">
+  <div class="bar2"><span data-t="wire.title"></span><button class="btn" id="wire-close" data-t="common.close"></button></div>
+  <pre id="wire-text"></pre>
+</div>
+<div class="toast" id="toast"></div>
+<audio id="audio" preload="none"></audio>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// ArcViewer は Desktop が初回の起動で手元に取る（/arcviewer/）。取り終えるまでと取れなかったときは譜面を見せない。
+// 公開サイトには切り替えない（公開サイトの ArcViewer はブラウザから BeatSaver を直に引き、OctantPath の決まりの外になる。2026-10-16）
+const arcLocal = () => status?.arcViewer?.state === 'ready';
+// BeatSaver の CDN のカバーと試聴は Desktop のサーバーを通して取る（OctantPath の User-Agent を付けるため）。手元のファイル（/api/library/…）はそのまま
+const cdn = (u) => (/^https:\/\//i.test(u || '') ? `/api/cdn?url=${encodeURIComponent(u)}` : u);
+// 所有マップの行では難易度を短く書く（全部の名前は行に重ねると出る）
+const SHORT = { Easy: 'E', Normal: 'N', Hard: 'H', Expert: 'Ex', ExpertPlus: 'Ex+' };
+const diffLabel = (c, d) => `${c && c !== 'Standard' ? esc(c) + ' ' : ''}${esc(d)}`;
+const VIEWER_PH = () => `<div class="ph">${H('preview.viewerPlaceholder')}</div>`;
+
+// 画面の文（Desktop の Languages/<言語>.json を /api/lang で受け取る）。T は文、H は HTML に入れるための逃がした文
+let TX = {};
+let langView = null;
+// 画面に出すパスは、ホームフォルダの部分を「~」にする（DesktopLang.ShownPath と同じ。表示だけで、値は変えない）
+function shownPath(p) {
+  const home = (langView?.home || '').replace(/[\\/]+$/, '');
+  if (!p || !home || !p.startsWith(home)) return p;
+  const rest = p.slice(home.length);
+  return rest === '' ? '~' : rest[0] === '/' || rest[0] === '\\' ? '~' + rest : p;
+}
+const T = (key, args) => (TX[key] ?? key).replace(/\{(\w+)\}/g, (m, k) => (args && args[k] !== undefined ? String(args[k]) : m));
+const H = (key, args) => esc(T(key, args));
+
+async function loadLang() {
+  try { langView = await api('/api/lang'); } catch (e) { return; }
+  TX = langView.texts || {};
+  document.documentElement.lang = langView.language;
+  document.querySelectorAll('[data-t]').forEach((el) => { el.textContent = T(el.dataset.t); });
+  document.querySelectorAll('[data-t-title]').forEach((el) => { el.title = T(el.dataset.tTitle); });
+  document.querySelectorAll('[data-t-ph]').forEach((el) => { el.placeholder = T(el.dataset.tPh); });
+  const sel = $('lang');
+  const label = (id) => (langView.available.find((a) => a.id === id) || {}).label || id;
+  sel.innerHTML = `<option value="auto">${H('lang.auto', { language: label(langView.auto) })}</option>`
+    + langView.available.map((a) => `<option value="${esc(a.id)}">${esc(a.label)}</option>`).join('');
+  sel.value = langView.setting === 'auto' || !langView.available.some((a) => a.id === langView.setting) ? 'auto' : langView.setting;
+  renderThemes();
+}
+
+// テーマ（desktop.json。自動は OS のものに従う）。選んだものは上の <head> の useTheme が描く前に当てる
+const THEMES = ['auto', 'dark', 'light'];
+function renderThemes() {
+  const root = document.documentElement;
+  $('theme').innerHTML = THEMES.map((t) => `<option value="${t}">${t === 'auto'
+    ? H('theme.auto', { theme: T(`theme.${root.dataset.theme}`) }) : H(`theme.${t}`)}</option>`).join('');
+  $('theme').value = root.dataset.themeSetting || 'auto';
+}
+window.themeChanged = renderThemes;
+
+async function changeTheme(value) {
+  let result;
+  try { result = await api('/api/theme', { theme: value }); } catch (e) { result = {}; }
+  if (result.theme) window.useTheme(result.theme);
+  renderThemes();
+}
+
+// 言語を変えたら、設定に書いてから画面を読み直す（起点・下見はサーバーにあるので残る）
+async function changeLang(value) {
+  await api('/api/lang', { language: value });
+  location.reload();
+}
+
+let status = null;
+let seed = null;
+let seedOwned = null;     // 起点が所有マップの曲なら、その行（曲を流す・手元の譜面を見るため）
+let draft = null;
+let selected = null;      // 下見で選んでいる行の id
+let choosing = null;      // 種類の入力を選んでいる途中 { preset, song, inputs, chosen, labels }
+let building = false;
+let message = '';
+let savedPlaylist = null;
+let viewerFor = null;     // ArcViewer に出している曲（同じなら読み直さない）
+let infoCache = {};
+let viewerAuto = false;   // 下見で「譜面を見る」を一度押したら、新しく並べるまでは選んだ曲の譜面をすぐ再生する
+let pinfoKey = null;      // 同じ曲・同じ状態ならプレビューの左側を作り直さない
+
+async function api(path, body) {
+  const res = await fetch(path, body === undefined ? {} : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  return res.json();
+}
+
+let toastTimer = 0;
+function toast(text, seconds = 3) {
+  $('toast').textContent = text;
+  $('toast').classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $('toast').classList.remove('on'), seconds * 1000);
+}
+
+// ほかの曲を流すときは ArcViewer を一時停止する（中の橋渡しで。橋渡しがまだなければ外して止める）
+function play(src) {
+  if (viewerFor) pauseViewer();
+  const a = $('audio');
+  if (src && a.src !== new URL(src, location.href).href) a.src = src;
+  a.play().catch(() => {});
+}
+function stop() { $('audio').pause(); }
+// 手元の ArcViewer で譜面の再生が始まったら、こちらの音を止める（ArcViewer の中の橋渡しが呼ぶ）
+window.octantPathViewerStarted = stop;
+
+// ---- 接続 ----
+async function refreshStatus() {
+  try {
+    status = await api('/api/status');
+  } catch (e) {
+    status = { ready: false, text: T('top.serverUnreachable'), home: [], mix: [] };
+  }
+  seed = status.seed || seed;
+  renderStatus();
+}
+
+function renderStatus() {
+  const s = status || {};
+  $('conn-dot').className = 'dot ' + (s.ready ? 'ok' : (s.state === 'Loading' || s.state === 'Degraded' || s.state === 'NeedsPairing') ? 'mid' : '');
+  const needsPairing = s.state === 'NeedsPairing';
+  // 共通の文はゲームの中でも使うので説明が付いている。上の帯では短くし、行き先は押して設定のペアリングへ（2026-10-13）
+  $('conn-text').textContent = `OctantCompass ${needsPairing ? T('top.needsPairing') : (s.text || '')}`;
+  $('conn').classList.toggle('link', needsPairing);
+  $('conn').title = needsPairing ? T('top.pairTitle') : '';
+  const lib = s.library || {};
+  const gameText = !lib.game ? H('where.noGame') : lib.problem ? esc(lib.problem) : H('where.game', { path: shownPath(lib.game) });
+  const av = s.arcViewer || {};
+  const arcText = av.state === 'ready' ? H('where.arcReady', { version: av.version || '' })
+    : av.state === 'downloading' ? H('where.arcDownloading', { percent: Math.round(100 * (av.progress || 0)) })
+    : av.state === 'failed' ? H('where.arcFailed', { error: av.error || '' }) : '';
+  $('where').innerHTML = s.userData ? `${H('where.data', { path: shownPath(s.data) })}${s.readOnly ? H('where.readOnly') : ''}<br>${gameText}${arcText ? '<br>' + arcText : ''}` : '';
+  renderSeed();
+  renderTypes();
+  $('header-text').textContent = message || (s.ready ? (s.presetsProblem || '') : '');
+  $('save-btn').disabled = !savedPlaylist;
+}
+
+// ---- 起点の曲（詳細と難易度） ----
+function renderSeed() {
+  const box = $('seed');
+  if (!seed) {
+    box.innerHTML = `<div class="muted small">${H('seed.empty')}</div>`;
+    return;
+  }
+  const own = seedOwned && seedOwned.hash === seed.hash ? seedOwned : null;
+  const cover = seed.cover ? `<img src="${esc(cdn(seed.cover))}" alt="">` : '<div class="noimg"></div>';
+  const diffs = (seed.diffs || []).map((d) => {
+    const on = d.characteristic === seed.characteristic && d.difficulty === seed.difficulty;
+    return `<span class="chip ${on ? 'on' : ''}" data-c="${esc(d.characteristic)}" data-d="${esc(d.difficulty)}">${diffLabel(d.characteristic, d.difficulty)}</span>`;
+  }).join('');
+  const meta = [seed.key ? '!bsr ' + esc(seed.key) : null, own?.bpm ? `BPM ${Math.round(own.bpm * 100) / 100}` : null].filter(Boolean).join(' · ');
+  const canView = own || seed.key;
+  box.innerHTML = `
+    <div class="card">${cover}<div>
+      <div class="title">${esc(seed.title)}</div>
+      <div class="muted small">${esc(seed.artist || '')}${seed.mapper ? ' · ' + esc(seed.mapper) : ''}</div>
+      <div class="muted small">${meta || esc(seed.hash)}</div>
+    </div></div>
+    <div class="label-sm">${H('seed.difficulty')}</div>
+    <div class="diffs">${diffs || `<span class="muted small">${H('seed.noDifficulty')}</span>`}</div>
+    <div class="btns">
+      ${own?.hasSong ? `<button class="btn" id="seed-play">${H('seed.play')}</button><button class="btn" id="seed-stop">■</button>` : ''}
+      <button class="btn" id="seed-view" ${canView ? '' : 'disabled'}>${H('preview.view')}</button>
+    </div>`;
+  box.querySelectorAll('.chip').forEach((el) => el.onclick = async () => {
+    const r = await api('/api/seed', { text: seed.input, characteristic: el.dataset.c, difficulty: el.dataset.d });
+    seed = r.seed;
+    renderStatus();
+  });
+  if (own?.hasSong) {
+    $('seed-play').onclick = () => play(`/api/library/${own.hash}/song`);
+    $('seed-stop').onclick = stop;
+  }
+  $('seed-view').onclick = () => viewSeed(own);
+}
+
+// 起点の譜面をプレビューに出す。所有している曲は手元のフォルダ、ほかは BeatSaver の版
+function viewSeed(own) {
+  selected = null;
+  if (draft) renderDraft();
+  pinfoKey = `seed:${seed.hash}`;
+  $('preview-from').textContent = T('preview.fromSeed');
+  $('pinfo').innerHTML = `
+    <div class="head">${seed.cover ? `<img src="${esc(cdn(seed.cover))}" alt="">` : '<div class="noimg"></div>'}
+      <div><h3>${esc(seed.title)}</h3><div class="muted small">${esc(seed.artist || '')}${seed.mapper ? ' · ' + esc(seed.mapper) : ''}</div>
+      <div class="small">${diffLabel(seed.characteristic, seed.difficulty)}</div></div>
+    </div>
+    ${own ? `<dl class="kv"><dt>${H('preview.folder')}</dt><dd>${esc(shownPath(own.folder))}</dd><dt>hash</dt><dd>${esc(own.hash)}</dd></dl>` : ''}`;
+  showViewer({ id: `seed:${seed.hash}:${seed.difficulty}`, url: own ? `${location.origin}/api/maps/${seed.hash}.zip` : null, key: seed.key, characteristic: seed.characteristic, difficulty: seed.difficulty });
+}
+
+async function setSeed(text, characteristic, difficulty) {
+  const r = await api('/api/seed', { text, characteristic, difficulty });
+  if (r.error) { toast(r.error); return false; }
+  seed = r.seed;
+  if (r.warning) toast(r.warning);
+  message = '';
+  renderStatus();
+  renderLibrary();
+  return true;
+}
+
+$('seed-form').onsubmit = async (e) => {
+  e.preventDefault();
+  seedOwned = null;
+  if (await setSeed($('seed-input').value.trim())) $('seed-input').value = '';
+};
+
+// ---- 種類（MOD の「ミックス」の小窓と板のカードを、いつも出しておく） ----
+function renderTypes() {
+  const box = $('types');
+  // 中身を作り直すあいだ、起点の欄の動いた位置を保つ
+  const top = $('seed-body').scrollTop;
+  box.innerHTML = '';
+  const s = status || {};
+  if (!s.ready || !(s.mix?.length || s.home?.length)) {
+    box.innerHTML = `<div class="muted small">${s.ready ? esc(s.presetsProblem || T('types.notReceived')) : H('types.notConnected')}</div>`;
+    return;
+  }
+  const busy = building || !!draft?.creating;
+  addHeading(box, T('types.fromSong'), true);
+  let group;
+  const grouped = s.mix.some((p) => p.group);
+  for (const p of s.mix) {
+    if (grouped && p.group !== group) { group = p.group; addHeading(box, group || T('types.other')); }
+    const disabled = busy || (p.needsSeed && !seed);
+    addPreset(box, p, true, disabled, p.needsSeed && !seed ? T('types.pickSongFirst') : p.hint);
+  }
+  if (s.home?.length) {
+    addHeading(box, T('types.noSeed'), true);
+    for (const p of s.home) addPreset(box, p, false, busy, p.hint);
+  }
+  $('seed-body').scrollTop = top;
+}
+
+function addHeading(box, text, big) {
+  const h = document.createElement('div');
+  h.className = 'heading' + (big ? ' big' : '');
+  h.textContent = text;
+  box.appendChild(h);
+}
+
+function addPreset(box, p, song, disabled, hint) {
+  const open = choosing && choosing.preset.id === p.id && choosing.song === song;
+  const t = document.createElement('button');
+  t.className = 'tile' + (open ? ' on' : '');
+  t.disabled = disabled;
+  t.innerHTML = `<span class="label">${esc(p.label)}</span>${hint ? `<span class="hint">${esc(hint)}</span>` : ''}`;
+  t.title = hint || '';
+  t.onclick = () => presetChosen(p, song);
+  box.appendChild(t);
+  if (open) box.appendChild(optionsBox());
+}
+
+// 種類の入力（ジャンルなど）。押したカードのすぐ下に、今の入力の選択肢を出す
+function optionsBox() {
+  const c = choosing;
+  const input = c.inputs[Object.keys(c.chosen).length];
+  const wrap = document.createElement('div');
+  wrap.className = 'options';
+  wrap.innerHTML = `<div class="ask"><span>${c.labels.length ? esc(c.labels.join(' → ')) + ' → ' : ''}${esc(input.label || input.name)}</span><a>${H('types.cancel')}</a></div><div class="grid"></div>`;
+  wrap.querySelector('a').onclick = () => { choosing = null; renderTypes(); };
+  const grid = wrap.querySelector('.grid');
+  for (const o of input.options) {
+    const t = document.createElement('button');
+    t.className = 'tile';
+    t.innerHTML = `<span class="label">${esc(o.label)}</span>`;
+    t.onclick = () => {
+      c.chosen[input.name] = o.value;
+      c.labels.push(o.label);
+      if (Object.keys(c.chosen).length < c.inputs.length) { renderTypes(); return; }
+      choosing = null;
+      buildDraft(c.preset, c.chosen, c.labels.join(T('types.joiner')), c.song);
+    };
+    grid.appendChild(t);
+  }
+  return wrap;
+}
+
+function presetChosen(p, song) {
+  if (song && p.needsSeed && !seed) {
+    message = T('seed.needed');
+    renderStatus();
+    return;
+  }
+  if (!p.choices || p.choices.length === 0) {
+    choosing = null;
+    buildDraft(p, null, null, song);
+    return;
+  }
+  const same = choosing && choosing.preset.id === p.id && choosing.song === song;
+  choosing = same ? null : { preset: p, song, inputs: p.choices, chosen: {}, labels: [] };
+  renderTypes();
+}
+
+// ---- 下見（MOD の BuildMix と下見の小窓） ----
+async function buildDraft(preset, choices, choiceLabel, song) {
+  viewerAuto = false;
+  building = true;
+  draft = null;
+  selected = null;
+  $('draft-seed').textContent = song && seed ? T('draft.from', { seed: seed.label }) : T('types.noSeed');
+  $('draft-title').textContent = T('draft.building', { preset: preset.label + (choiceLabel ? ': ' + choiceLabel : '') });
+  $('draft-list').innerHTML = `<div class="empty">${H('draft.asking')}</div>`;
+  $('draft-detail').textContent = '';
+  renderTypes();
+  let r;
+  try {
+    r = await api('/api/draft', { preset: preset.id, choices, choiceLabel, fromSong: song });
+  } finally {
+    building = false;
+  }
+  if (r.error) {
+    message = r.error;
+    toast(r.error);
+    clearDraftView();
+    refreshStatus();
+    return;
+  }
+  setDraft(r.draft);
+  // 1 曲目を選んで試聴をすぐ流す
+  if (draft && draft.items.length > 0) selectRow(draft.items[0].id, true);
+}
+
+function setDraft(d) {
+  draft = d;
+  if (!draft) { clearDraftView(); renderStatus(); return; }
+  if (draft.playlist) savedPlaylist = draft.playlist;
+  renderDraft();
+  renderStatus();
+}
+
+function clearDraftView() {
+  $('draft-seed').textContent = '';
+  $('draft-title').textContent = '';
+  $('draft-list').innerHTML = `<div class="empty">${H('draft.empty')}</div>`;
+  $('draft-detail').textContent = '';
+  $('progress').classList.remove('on');
+  $('draft-create').disabled = true;
+  $('draft-close').disabled = true;
+}
+
+function renderDraft() {
+  const d = draft;
+  $('draft-seed').textContent = d.seed;
+  $('draft-title').textContent = d.title + (d.reserve != null ? T('draft.reserve', { count: d.reserve }) : '');
+  const list = $('draft-list');
+  const top = list.scrollTop;
+  list.innerHTML = '';
+  d.items.forEach((i, n) => {
+    const row = document.createElement('div');
+    row.className = 'row' + (i.id === selected ? ' sel' : '');
+    const st = i.state === 'installed' ? H('draft.stateInstalled') : i.state === 'received' ? H('draft.stateReceived') : i.state === 'receiving' ? H('draft.stateReceiving') : i.state === 'unavailable' ? H('draft.stateUnavailable') : '';
+    row.innerHTML = `
+      <div class="n">${n + 1}</div>
+      ${i.cover ? `<img src="${esc(cdn(i.cover))}" alt="" loading="lazy">` : '<div class="noimg"></div>'}
+      <div class="t"><div class="name">${esc(i.title)}${i.subTitle ? ` <span class="muted">${esc(i.subTitle)}</span>` : ''}</div><div class="sub">${esc(i.artist)}${i.mapper ? ' · ' + esc(i.mapper) : ''}</div></div>
+      <div class="d">${diffLabel(i.characteristic, i.difficulty)}${i.nps != null ? ` · ${i.nps.toFixed(1)} NPS` : ''}<span class="st ${esc(i.state)}">${st}</span></div>
+      <div class="acts">
+        <button class="sym" data-act="replace" title="${H('draft.replace')}" ${d.creating ? 'disabled' : ''}>⇔</button>
+        <button class="sym" data-act="receive" title="${H('draft.receiveOne')}" ${d.creating || i.state ? 'disabled' : ''}>↓</button>
+        <button class="sym" data-act="seed" title="${H('draft.makeSeed')}" ${d.creating ? 'disabled' : ''}>⤴</button>
+      </div>`;
+    row.onclick = (e) => {
+      const act = e.target.closest('button')?.dataset.act;
+      if (act === 'replace') replaceRow(i.id);
+      else if (act === 'receive') receiveRow(i.id);
+      else if (act === 'seed') seedFrom(i);
+      else selectRow(i.id, true);
+    };
+    list.appendChild(row);
+  });
+  list.scrollTop = top;
+  $('draft-detail').textContent = d.message || '';
+  $('progress').classList.toggle('on', !!d.creating);
+  const p = d.progress;
+  $('progress-fill').style.width = p && p.total > 0 ? `${Math.round(100 * p.done / p.total)}%` : (d.creating ? '100%' : '0');
+  $('draft-create').disabled = d.creating || d.items.length === 0;
+  $('draft-close').disabled = d.creating;
+  const sel = d.items.find((i) => i.id === selected);
+  if (sel) renderPreview(sel);
+}
+
+function selectRow(id, withAudio) {
+  selected = id;
+  const item = draft?.items.find((i) => i.id === id);
+  if (viewerAuto && item) {
+    // 譜面のプレビューが音も出すので、試聴は流さない
+    renderDraft();
+    viewDraftItem(item);
+    return;
+  }
+  if (withAudio && item?.preview) { $('audio').src = cdn(item.preview); play(); }
+  renderDraft();
+}
+
+// 下見の曲の譜面を見る。手元にあれば手元のマップ、なければ BeatSaver の版
+function viewDraftItem(i) {
+  const local = i.state === 'received' || i.state === 'installed';
+  if (!local && !i.key) return;
+  showViewer({ id: `draft:${i.id}`, url: local ? `${location.origin}/api/maps/${i.hash}.zip` : null, key: i.key, characteristic: i.characteristic, difficulty: i.difficulty });
+}
+
+async function replaceRow(id) {
+  const wasSelected = id === selected;
+  const before = new Set(draft.items.map((i) => i.id));
+  const r = await api('/api/draft/replace', { id });
+  setDraft(r.draft);
+  // 入れ替えた曲を選んで試聴をすぐ流す
+  const next = draft?.items.find((i) => !before.has(i.id));
+  if (next) selectRow(next.id, true);
+  else if (wasSelected) { selected = null; stop(); renderDraft(); }
+  pollWhile(() => draft && draft.message === T('draft.toppingUp'));
+}
+
+async function receiveRow(id) {
+  const item = draft.items.find((i) => i.id === id);
+  if (item) item.state = 'receiving';
+  renderDraft();
+  $('draft-detail').textContent = T('draft.receivingOne', { title: item?.title ?? '' });
+  const r = await api('/api/draft/receive', { id });
+  delete infoCache[item?.hash];
+  setDraft(r.draft);
+  loadLibrary();
+}
+
+async function seedFrom(item) {
+  seedOwned = libItems.find((m) => m.hash === item.hash) || null;
+  if (await setSeed(item.hash, item.characteristic, item.difficulty)) toast(T('seed.set', { label: seed.label }));
+}
+
+$('draft-create').onclick = async () => {
+  stop();
+  const r = await api('/api/draft/create', {});
+  setDraft(r.draft);
+  pollWhile(() => draft && draft.creating, () => {
+    loadLibrary();
+    if (draft?.playlist) toast(T('draft.playlistMade', { name: draft.playlist }));
+  });
+};
+$('draft-close').onclick = async () => {
+  viewerAuto = false;
+  stop();
+  if (draft && !draft.creating) await api('/api/draft/close', {});
+  draft = null;
+  selected = null;
+  clearDraftView();
+  renderStatus();
+};
+
+// 裏で進むもの（作成の取得、入れ替え用の追加）を見る
+async function pollWhile(cond, done) {
+  while (cond()) {
+    await new Promise((r) => setTimeout(r, 400));
+    const r = await api('/api/draft');
+    if (!r.draft) break;
+    draft = r.draft;
+    if (draft.playlist) savedPlaylist = draft.playlist;
+    renderDraft();
+  }
+  infoCache = {};
+  pinfoKey = null;
+  if (draft) renderDraft();
+  renderStatus();
+  done?.();
+}
+
+// 推薦の理由のビューを読める名前に（2026-10-13）。/v1/health の db.roles から引いた役割の名前で出し、中の名前（id@version）は
+// title で見せる。同じ役割のビューが 2 つ以上あれば、id の最初の語（clap、mert など）を大文字で添えて分ける。役割の分からないビューは
+// id から @版 を外して出す
+function viewNames(ids) {
+  const roles = status?.viewRoles || {};
+  const label = (id) => roles[id] && TX[`role.${roles[id]}`] !== undefined ? T(`role.${roles[id]}`) : id.split('@')[0];
+  const count = {};
+  ids.forEach((id) => { const l = label(id); count[l] = (count[l] || 0) + 1; });
+  return Object.fromEntries(ids.map((id) => {
+    const l = label(id);
+    return [id, count[l] > 1 && roles[id] ? `${l} · ${id.split('@')[0].split('_')[0].toUpperCase()}` : l];
+  }));
+}
+
+// ---- プレビュー（下見の曲） ----
+function renderPreview(i) {
+  const key = `draft:${i.id}:${i.state}`;
+  if (pinfoKey === key) return;
+  const sameSong = pinfoKey && pinfoKey.startsWith(`draft:${i.id}:`);
+  pinfoKey = key;
+  $('preview-from').textContent = T('preview.fromDraft');
+  const views = Object.entries(i.reason?.views || {});
+  const max = Math.max(0.0001, ...views.map(([, v]) => Math.abs(v)));
+  const names = viewNames(views.map(([k]) => k));
+  const bars = views.map(([k, v]) => `<div class="bar"><span class="k" title="${esc(k)}">${esc(names[k])}</span><div class="track"><div style="width:${Math.round(100 * Math.abs(v) / max)}%"></div></div><span>${v.toFixed(2)}</span></div>`).join('');
+  const dr = i.reason?.difficulty;
+  const diffReason = dr ? [
+    dr.aim ? H('preview.aim', { aim: dr.aim }) : null,
+    dr.clearChance != null ? H('preview.clearChance', { percent: (dr.clearChance * 100).toFixed(0) }) : null,
+    dr.distance != null ? H('preview.distance', { distance: dr.distance.toFixed(2) }) + (dr.target != null ? H('preview.target', { target: dr.target.toFixed(2) }) : '') : null,
+    dr.nearestStrong ? H('preview.nearestStrong', { hash: dr.nearestStrong.hash.slice(0, 8), difficulty: dr.nearestStrong.difficulty || '' }) : null,
+  ].filter(Boolean).join(' · ') : H('preview.noDifficultyReason');
+  const local = i.state === 'received' || i.state === 'installed';
+  $('pinfo').innerHTML = `
+    <div class="head">${i.cover ? `<img src="${esc(cdn(i.cover))}" alt="">` : '<div class="noimg"></div>'}
+      <div><h3>${esc(i.title)}</h3><div class="muted small">${esc(i.artist)} · ${esc(i.mapper)}</div>
+      <div class="small">${diffLabel(i.characteristic, i.difficulty)}${i.nps != null ? ` · ${i.nps.toFixed(2)} NPS` : ''}${i.njs != null ? ` · NJS ${i.njs}` : ''}${i.duration ? ` · ${Math.floor(i.duration / 60)}:${String(Math.round(i.duration % 60)).padStart(2, '0')}` : ''}</div>
+      <div class="small muted">${i.key ? '!bsr ' + esc(i.key) + ' · ' : ''}${H('preview.rank', { rank: i.rank })}</div></div>
+    </div>
+    <div class="btns">
+      ${i.preview ? `<button class="btn" id="play-btn">${H('preview.listen')}</button><button class="btn" id="stop-btn">■</button>` : `<span class="muted small">${H('preview.noPreview')}</span>`}
+      <button class="btn primary" id="arc-view" ${local || i.key ? '' : 'disabled'}>${H('preview.view')}</button>
+    </div>
+    <div class="section-title">${H('preview.reason')}</div>
+    <div class="bars">${bars || `<span class="muted small">${H('preview.noViews')}</span>`}</div>
+    <div class="small">${diffReason}</div>
+    <div class="section-title">${H('preview.receivedMap')}</div>
+    <div id="received-info" class="small">${i.state === 'received' ? H('preview.reading') : i.state === 'installed' ? H('preview.inGame') : H('preview.notReceived')}</div>`;
+  if (i.preview) {
+    $('play-btn').onclick = () => play(cdn(i.preview));
+    $('stop-btn').onclick = stop;
+  }
+  // 手元にあれば手元のマップ、なければ BeatSaver の版で見る
+  $('arc-view').onclick = () => { viewerAuto = true; viewDraftItem(i); };
+  if (!sameSong && viewerFor && viewerFor !== `draft:${i.id}`) resetViewer();
+  if (i.state === 'received') loadInfo(i);
+}
+
+async function loadInfo(i) {
+  const info = infoCache[i.hash] || (infoCache[i.hash] = await api(`/api/maps/${i.hash}/info`));
+  const box = $('received-info');
+  if (!box || selected !== i.id) return;
+  if (info.error) { box.textContent = info.error; return; }
+  const sets = (info.sets || []).map((s) => `${esc(s.characteristic)}: ${(s.difficulties || []).map((d) => esc(d.difficulty)).join(' / ')}`).join('<br>');
+  box.innerHTML = `<dl class="kv"><dt>${H('preview.folder')}</dt><dd>${esc(shownPath(info.folder))}</dd><dt>BPM</dt><dd>${info.bpm ?? ''}</dd><dt>${H('preview.difficulties')}</dt><dd>${sets}</dd></dl>`;
+}
+
+function pauseViewer() {
+  const frame = $('viewer').querySelector('iframe');
+  try {
+    const bridge = frame?.contentWindow?.octantPathViewer;
+    if (bridge) { bridge.pause(); return; }
+  } catch (e) {
+    // 読み込みの途中で触れなければ、外して止める
+  }
+  resetViewer();
+  $('viewer').innerHTML = `<div class="ph">${H('preview.viewerStopped')}</div>`;
+}
+
+function resetViewer() {
+  viewerFor = null;
+  $('viewer').innerHTML = VIEWER_PH();
+}
+
+// 「見る」を押したら読み込んで、そのまま再生する（ArcViewer の autoPlay）。引数は ArcViewer の wiki「URL Argument Docs」のとおり。
+// 手元のマップは Desktop のサーバーから zip で渡す。ArcViewer は url= を CORS の中継を通して取りに行き、中継からは 127.0.0.1 に届かないので noProxy で直接読ませる
+function showViewer(v) {
+  stop();
+  viewerFor = v.id;
+  const q = new URLSearchParams();
+  if (v.url) { q.set('url', v.url); q.set('noProxy', 'true'); } else q.set('id', v.key);
+  if (v.characteristic) q.set('mode', v.characteristic);
+  if (v.difficulty) q.set('difficulty', v.difficulty);
+  q.set('autoPlay', 'true');
+  if (!arcLocal()) {
+    const av = status?.arcViewer || {};
+    $('viewer').innerHTML = `<div class="ph">${av.state === 'failed' ? H('preview.viewerFailed', { error: av.error || '' }) : H('preview.viewerWaiting')}</div>`;
+    return;
+  }
+  $('viewer').innerHTML = `<iframe src="/arcviewer/?${q}" allow="autoplay; fullscreen"></iframe>`;
+}
+
+// ---- 所有しているマップ ----
+let libItems = [];
+let libTimer = 0;
+let libLimit = 200;
+let libTotal = 0;
+
+$('library-q').oninput = () => { clearTimeout(libTimer); libTimer = setTimeout(() => { libLimit = 200; loadLibrary(); }, 250); };
+
+async function loadLibrary() {
+  const q = new URLSearchParams({ source: '', q: $('library-q').value.trim(), limit: libLimit });
+  let r;
+  try { r = await api(`/api/library?${q}`); } catch (e) { return; }
+  libItems = r.items || [];
+  libTotal = r.total;
+  $('library-title').textContent = T('library.count', { count: (r.gameCount || 0) + (r.desktopCount || 0) }) + (r.scanning ? T('library.scanning') : '');
+  renderLibrary();
+  if (r.scanning) setTimeout(loadLibrary, 2000);
+}
+
+function renderLibrary() {
+  const list = $('library-list');
+  const top = list.scrollTop;
+  list.innerHTML = '';
+  for (const m of libItems) {
+    const row = document.createElement('div');
+    row.className = 'row' + (m.hash && seed && m.hash === seed.hash ? ' sel' : '');
+    const diffs = (m.diffs || []).map((d) => SHORT[d.difficulty] || d.difficulty).filter((v, i, a) => a.indexOf(v) === i).join(' ');
+    row.innerHTML = `
+      ${m.hasCover && m.hash ? `<img src="/api/library/${m.hash}/cover" alt="" loading="lazy">` : '<div class="noimg"></div>'}
+      <div class="t"><div class="name">${esc(m.title)}${m.subTitle ? ` <span class="muted">${esc(m.subTitle)}</span>` : ''}</div><div class="sub">${esc(m.artist || '')}${m.mapper ? ' · ' + esc(m.mapper) : ''}</div></div>
+      <div class="d" title="${esc((m.diffs || []).map((d) => d.difficulty).join(' / '))}">${esc(diffs)}</div>`;
+    row.onclick = () => pickOwned(m);
+    list.appendChild(row);
+  }
+  if (!libItems.length) list.innerHTML = `<div class="empty">${H('library.none')}</div>`;
+  if (libTotal > libLimit) {
+    const more = document.createElement('div');
+    more.className = 'lib-more';
+    more.innerHTML = `<button class="btn">${H('library.more', { shown: Math.min(libTotal, libLimit), total: libTotal })}</button>`;
+    more.querySelector('button').onclick = () => { libLimit += 200; loadLibrary(); };
+    list.appendChild(more);
+  }
+  list.scrollTop = top;
+}
+
+// 所有マップの曲を押したら、そのまま起点にして曲を流す（難易度は Standard のいちばん上。中の列で変えられる）
+async function pickOwned(m) {
+  if (!m.hash) { toast(T('library.noHash', { problem: m.problem || '' }) + `\n${shownPath(m.folder)}`); return; }
+  seedOwned = m;
+  if (m.hasSong) play(`/api/library/${m.hash}/song`);
+  await setSeed(m.hash);
+}
+
+// ---- 上の帯 ----
+// 作ったプレイリストを、OS のフォルダ選択で選んだフォルダに保存する（窓は Desktop が開く）
+$('save-btn').onclick = async () => {
+  if (!savedPlaylist) return;
+  const btn = $('save-btn');
+  btn.disabled = true;
+  try {
+    const r = await api('/api/playlists/save', { name: savedPlaylist });
+    if (r.text || r.error) toast(r.text || r.error, 6);
+  } catch (e) {
+    toast(T('top.saveFailed', { problem: e.message }));
+  } finally {
+    btn.disabled = !savedPlaylist;
+  }
+};
+$('reload-btn').onclick = async () => { message = ''; try { await api('/api/recheck', {}); } catch (e) { /* 下の refreshStatus が知らせる */ } await refreshStatus(); loadLibrary(); toast(status.text); };
+$('wire-btn').onclick = async () => {
+  const r = await api('/api/debug');
+  $('wire-text').textContent = `→ POST /v1/recommendations\n${r.request || T('wire.notSent')}\n\n← ${r.response || ''}`;
+  $('wire').classList.add('on');
+};
+$('wire-close').onclick = () => $('wire').classList.remove('on');
+async function loadPair() {
+  try { $('pair-address').value = (await api('/api/pair')).address || ''; } catch (e) { /* 空のまま（同じ PC） */ }
+}
+// まだペアリングしていなければ、上の接続の表示から設定のペアリングへ行ける
+$('conn').onclick = () => {
+  if (!$('conn').classList.contains('link')) return;
+  showTab('settings');
+  $('pair-code').focus();
+};
+$('pair-go').onclick = async () => {
+  const btn = $('pair-go');
+  btn.disabled = true;
+  try {
+    const r = await api('/api/pair', { address: $('pair-address').value, code: $('pair-code').value });
+    toast(r.text);
+    if (r.ok) $('pair-code').value = '';
+  } catch (e) {
+    toast(T('top.serverUnreachable'));
+  } finally {
+    btn.disabled = false;
+    refreshStatus();
+  }
+};
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if ($('wire').classList.contains('on')) $('wire').classList.remove('on');
+  else if (choosing) { choosing = null; renderTypes(); }
+});
+
+// ---- 設定（2026-10-13: OctantCompass の窓の詳細設定と同じ形） ----
+let settingsView = null;
+let editing = null;  // 開いている項目のキー
+
+function showTab(name) {
+  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
+  $('tab-main').hidden = name !== 'main';
+  $('tab-settings').hidden = name !== 'settings';
+  try { sessionStorage.setItem('octantpath-desktop-tab', name); } catch (e) { /* 覚えられなくてもよい */ }
+  if (name === 'settings') loadSettings();
+}
+document.querySelectorAll('#tabs button').forEach((b) => { b.onclick = () => showTab(b.dataset.tab); });
+
+async function loadSettings() {
+  try { settingsView = await api('/api/settings'); } catch (e) { return; }
+  renderSettings();
+}
+
+function renderBrand() {
+  const i = settingsView?.info || {};
+  $('brand-ver').textContent = [i.version, i.commit].filter(Boolean).join(' · ');
+}
+
+// OS のフォルダ選択の窓で選べる設定（選んだパスは入力欄に入るだけで、保存は「保存」で）
+const pickable = ['gameFolder'];
+
+async function pickFolder() {
+  const editor = document.querySelector('[data-editor]');
+  const input = editor.querySelector('[data-input]');
+  const button = editor.querySelector('[data-pick]');
+  const err = editor.querySelector('[data-err]');
+  button.disabled = true;
+  err.textContent = '';
+  try {
+    const r = await api('/api/pick-folder', { start: input.value });
+    if (r.path) input.value = r.path;
+    else if (r.error) err.textContent = r.error;
+  } finally {
+    button.disabled = false;
+    input.focus();
+  }
+}
+
+const showValue = (v) => (v === null || v === undefined || v === '' ? T('info.none') : String(v));
+
+function renderSettings() {
+  const view = settingsView;
+  if (!view) return;
+  renderBrand();
+  let group = null;
+  $('settings').innerHTML = view.items.map((it) => {
+    const head = it.group !== group ? `<div class="group">${H(`settingsGroup.${(group = it.group)}`)}</div>` : '';
+    const same = JSON.stringify(it.value) === JSON.stringify(it.default);
+    const shown = (v) => showValue(it.kind === 'folder' ? shownPath(v) : v);
+    const editor = editing === it.key ? `
+      <div class="editor" data-editor="${esc(it.key)}">
+        <div class="help">${H(`settingHelp.${it.key}`)}</div>
+        <input class="text" data-input value="${esc(it.value ?? '')}" spellcheck="false" autocomplete="off">
+        <div class="row2">${pickable.includes(it.key) ? `<button class="btn" data-pick>${H('settings.pick')}</button>` : ''}
+          <button class="btn primary" data-save="${esc(it.key)}">${H('settings.save')}</button>
+          <button class="btn" data-cancel>${H('settings.cancel')}</button>
+          <button class="btn" data-reset="${esc(it.key)}">${H('settings.reset')}</button><span class="err" data-err></span></div>
+      </div>` : '';
+    return `${head}<div class="set">
+      <div class="name">${H(`setting.${it.key}`)}<span class="key">${esc(it.key)}</span></div>
+      <div class="val">${esc(shown(it.value))}${same ? '' : `<span class="def">${H('settings.default', { value: shown(it.default) })}</span>`}</div>
+      <div><button class="btn" data-edit="${esc(it.key)}" ${view.readOnly ? 'disabled' : ''}>${H('settings.change')}</button></div>
+      ${editor}</div>`;
+  }).join('');
+  $('settings-note').textContent = view.readOnly ? T('settings.readOnlyNote', { path: shownPath(view.path) }) : T('settings.note', { path: shownPath(view.path) });
+  const i = view.info || {};
+  const kv = (rows) => rows.map(([k, v]) => `<dt>${H(k)}</dt><dd>${esc(showValue(v))}</dd>`).join('');
+  $('info').innerHTML = kv([
+    ['info.version', [i.version, i.commit].filter(Boolean).join(' · ')],
+    ['info.octantCompass', i.octantCompass],
+    ['info.data', shownPath(i.data)],
+    ['info.userData', shownPath(i.userData)],
+    ['info.token', shownPath(i.token)],
+    ['info.cache', shownPath(i.cache)],
+    ['info.levels', shownPath(i.levels)],
+    ['info.playlists', shownPath(i.playlists)],
+    ['info.game', shownPath(i.game)],
+  ]);
+  const input = document.querySelector('[data-editor] [data-input]');
+  if (input) { input.focus(); input.onkeydown = (e) => { if (e.key === 'Enter') saveSetting(editing, input.value); }; }
+}
+
+async function saveSetting(key, value) {
+  const r = await api('/api/settings', { key, value: String(value) });
+  if (r.error) {
+    const err = document.querySelector(`[data-editor="${CSS.escape(key)}"] [data-err]`);
+    if (err) err.textContent = r.error;
+    return;
+  }
+  settingsView = r;
+  editing = null;
+  renderSettings();
+  toast(T('settings.saved'));
+  // ゲームのフォルダを変えるとサーバーが所有マップを読み直すので、一覧も取り直す（読み終わるまでは loadLibrary が待って取り直す）
+  if (key === 'gameFolder') { loadLibrary(); refreshStatus(); }
+}
+
+$('settings').addEventListener('click', (ev) => {
+  const t = ev.target;
+  if (t.dataset.edit) { editing = editing === t.dataset.edit ? null : t.dataset.edit; renderSettings(); }
+  else if (t.hasAttribute('data-pick')) pickFolder();
+  else if (t.hasAttribute('data-cancel')) { editing = null; renderSettings(); }
+  else if (t.dataset.save) saveSetting(t.dataset.save, document.querySelector('[data-editor] [data-input]').value);
+  else if (t.dataset.reset) {
+    const it = settingsView.items.find((x) => x.key === t.dataset.reset);
+    if (it) saveSetting(it.key, it.default ?? '');
+  }
+});
+
+$('lang').onchange = (e) => changeLang(e.target.value);
+$('theme').onchange = (e) => changeTheme(e.target.value);
+loadLang().then(() => {
+  refreshStatus();
+  loadLibrary();
+  loadSettings();
+  loadPair();
+  let tab = 'main';
+  try { tab = sessionStorage.getItem('octantpath-desktop-tab') === 'settings' ? 'settings' : 'main'; } catch (e) { /* 既定の画面 */ }
+  showTab(tab);
+});
+// 下見が残っていれば（窓を開き直したとき）出し直す
+api('/api/draft').then((r) => { if (r.draft) setDraft(r.draft); }).catch(() => {});
+// ready でない間は設定の healthRetryIntervalSeconds（/api/status の recheckSeconds。MOD と同じ間隔）ごとに確かめ直す。
+// つながったあとも、OctantCompass が止まったら気づけるよう、その 3 倍ごとに確かめる（2026-10-12。3 倍は推測）。
+// サーバーに届かない間は、最後に聞いた間隔のまま。間隔は前の確認が終わってから数える。
+// 取り込み中と ArcViewer の取得中は、進み具合が見えるよう設定によらず 10 秒ごとに確かめる（前からの間隔）
+const progressSeconds = 10;
+let recheckSeconds = 10;
+let lastStatusCheck = performance.now();
+// 次に OctantCompass の様子を確かめるまでの残り（ミリ秒）
+function statusWait() {
+  return (status?.ready ? 3 : 1) * recheckSeconds * 1000 - (performance.now() - lastStatusCheck);
+}
+function scheduleStatus() {
+  setTimeout(async () => {
+    try {
+      if (status?.library?.scanning || status?.arcViewer?.state === 'downloading' || statusWait() <= 0) {
+        try {
+          await refreshStatus();
+        } finally {
+          lastStatusCheck = performance.now();
+        }
+      }
+    } finally {
+      recheckSeconds = status?.recheckSeconds || recheckSeconds;
+      scheduleStatus();
+    }
+  }, Math.max(0, Math.min(progressSeconds * 1000, statusWait())));
+}
+scheduleStatus();
+</script>
+</body>
+</html>

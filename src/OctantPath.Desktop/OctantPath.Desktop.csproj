@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- HMD なしで OctantPath の板・手札・下見・取得を使うデスクトップの道具。OctantPath.Core をそのまま使う -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <RootNamespace>OctantPath.Desktop</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- MOD（src/OctantPath/OctantPath.csproj）と同じ版。画面の名前の横に、版と git のコミットを出す -->
+    <Version>0.0.4</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../OctantPath.Core/OctantPath.Core.csproj" />
+  </ItemGroup>
+
+  <!-- 窓（DesktopWindow.cs）。Windows は WebView2、Linux は WebKitGTK 4.1 を OS から使う -->
+  <ItemGroup>
+    <PackageReference Include="Photino.NET" Version="4.0.16" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="wwwroot/**" />
+    <EmbeddedResource Include="wwwroot/index.html" LogicalName="index.html" />
+    <EmbeddedResource Include="Languages/*.json" LogicalName="OctantPath.Desktop.Lang.%(Filename).json" />
+  </ItemGroup>
+
+</Project>

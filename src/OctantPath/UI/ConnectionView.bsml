@@ -1,0 +1,13 @@
+<bg xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:noNamespaceSchemaLocation='https://raw.githubusercontent.com/monkeymanboy/BSML-Docs/gh-pages/BSMLSchema.xsd'>
+  <vertical child-control-height='true' child-expand-height='false' child-align='UpperCenter' spacing='2' pad-top='6' pad-left='4' pad-right='4'>
+    <text text='~title-text' font-size='5' align='Center' preferred-height='7'/>
+    <text text='~status-text' font-size='4' align='Center' word-wrapping='true' preferred-height='12'/>
+    <text text='~detail-text' font-size='3' align='Center' word-wrapping='true' preferred-height='16' color='#BBBBBB'/>
+    <string-setting text='~address-text' value='address' apply-on-change='true' hover-hint='~address-hint'/>
+    <string-setting text='~code-text' value='code' apply-on-change='true' hover-hint='~code-hint'/>
+    <horizontal spacing='2' preferred-height='8'>
+      <button text='~pair-text' on-click='pair-click' interactable='~pair-interactable' preferred-width='34' preferred-height='8'/>
+      <button text='~refresh-text' on-click='refresh-click' interactable='~refresh-interactable' preferred-width='34' preferred-height='8'/>
+    </horizontal>
+  </vertical>
+</bg>

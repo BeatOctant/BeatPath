@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>9</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>OctantPath</AssemblyName>
+    <RootNamespace>OctantPath</RootNamespace>
+    <Version>0.0.4</Version>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <DebugType>portable</DebugType>
+  </PropertyGroup>
+
+  <!-- 配る DLL（Release）には .pdb を作らない（OctantSpecs decisions.md 2026-10-22）。ビルドした場所のパスは Directory.Build.props の PathMap で /_/ にする -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Unity に依存しない部品はソースのまま取り込む（ゲームには DLL を 1 つだけ置く） -->
+  <ItemGroup>
+    <Compile Include="../OctantPath.Core/**/*.cs" Exclude="../OctantPath.Core/obj/**;../OctantPath.Core/bin/**" LinkBase="Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <GameReference Include="IPA.Loader;Main;DataModels;GameplayCore;BeatmapCore;Colors;HMUI;BeatSaber.ViewSystem;BGLib.AppFlow;BGLib.UnityExtension;Zenject;Zenject-usage;UnityEngine;UnityEngine.CoreModule;UnityEngine.UI;UnityEngine.AudioModule;UnityEngine.UnityWebRequestModule;UnityEngine.UnityWebRequestAudioModule;Newtonsoft.Json;System.Net.Http;System.IO.Compression;System.IO.Compression.FileSystem;Unity.TextMeshPro;BGLib.Polyglot" />
+    <Reference Include="@(GameReference)">
+      <HintPath>$(ManagedDir)/%(Identity).dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <PluginReference Include="SiraUtil;BSML;SongCore" />
+    <Reference Include="BeatSaberPlaylistsLib">
+      <HintPath>$(BeatSaberDir)/Libs/BeatSaberPlaylistsLib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="@(PluginReference)">
+      <HintPath>$(PluginsDir)/%(Identity).dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="manifest.json" />
+    <EmbeddedResource Include="UI/*.bsml" />
+    <EmbeddedResource Include="UI/Icons/*.png" LogicalName="OctantPath.Icons.%(Filename).png" />
+    <!-- 画面の文。名前は OctantPath.Core と同じ OctantPath.Lang.<言語>.json -->
+    <EmbeddedResource Include="../OctantPath.Core/Languages/*.json" LogicalName="OctantPath.Lang.%(Filename).json" LinkBase="Lang" />
+    <!-- 設定の既定値。名前は OctantPath.Core と同じ OctantPath.Settings.defaults.json -->
+    <EmbeddedResource Include="../OctantPath.Core/Settings/defaults.json" LogicalName="OctantPath.Settings.defaults.json" LinkBase="Settings" />
+  </ItemGroup>
+
+  <!-- dotnet build -p:CopyToGame=true でゲームの Plugins に置く -->
+  <Target Name="CopyToGame" AfterTargets="Build" Condition="'$(CopyToGame)' == 'true'">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginsDir)" />
+    <Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFolder="$(PluginsDir)" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+  </Target>
+
+</Project>

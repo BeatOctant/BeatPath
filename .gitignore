@@ -1,0 +1,10 @@
+# ゲームのインストールへのシンボリックリンク（各自の PC のもの）
+/BeatSaber
+bin/
+obj/
+*.user
+/.octantspecs/
+
+# OctantPath.Desktop のデータ（設定・トークン・取得したマップ）
+/.desktop/
+dist/

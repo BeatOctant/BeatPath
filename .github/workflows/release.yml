@@ -1,0 +1,149 @@
+name: release
+# OctantPath Desktop as one executable per OS (.NET included), built on Linux for linux-x64 and win-x64, then started
+# with its window on each OS. A v* tag makes a draft GitHub Release with both files once both start, and a run by hand
+# keeps them as an artifact for 1 day. A pull request that changes the build or how Desktop starts builds both and
+# starts the Linux one, without an artifact: ~80 MB per run filled the free plan's 0.5 GB of Actions storage, and the
+# Windows start (which needs the artifact) runs only for a tag or by hand. The MOD (src/OctantPath) needs the game's DLLs
+# and is not built here. The Windows check counts double against the minutes.
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - ".github/workflows/release.yml"
+      - "scripts/publish-desktop.sh"
+      - "src/OctantPath.Desktop/THIRD-PARTY-NOTICES.txt"
+      - "src/OctantPath.Desktop/OctantPath.Desktop.csproj"
+      - "src/OctantPath.Desktop/Program.cs"
+      - "src/OctantPath.Desktop/DesktopWindow.cs"
+      - "src/OctantPath.Desktop/WebKitAutoplay.cs"
+      - "src/OctantPath.Desktop/LinuxWindow.cs"
+      - "src/OctantPath.Desktop/WindowMinSize.cs"
+      - "src/OctantPath.Desktop/WindowPlacement.cs"
+      - "src/OctantPath.Core/OctantPath.Core.csproj"
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  desktop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DOTNET_NOLOGO: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "8.0.x"
+      - run: bash scripts/publish-desktop.sh linux-x64
+      - run: bash scripts/publish-desktop.sh win-x64
+      - name: Name the files
+        run: |
+          name="${GITHUB_REF_NAME//\//-}"
+          mkdir out
+          cp dist/linux-x64/OctantPath.Desktop "out/OctantPath.Desktop-$name-linux-x64"
+          cp dist/win-x64/OctantPath.Desktop.exe "out/OctantPath.Desktop-$name-win-x64.exe"
+          # 同梱したもののライセンス（scripts/publish-desktop.sh が書く）
+          cp dist/linux-x64/THIRD-PARTY-NOTICES.txt "out/OctantPath.Desktop-$name-linux-x64-THIRD-PARTY-NOTICES.txt"
+          cp dist/win-x64/THIRD-PARTY-NOTICES.txt "out/OctantPath.Desktop-$name-win-x64-THIRD-PARTY-NOTICES.txt"
+          ls -l out
+      # Desktop starts, its window stays open (the system's web view loaded the page), a second start only brings that
+      # window forward, and Desktop ends with its window.
+      - name: Install what the window needs (README.md, OctantPath Desktop) and a screen
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-0 libnotify4 xvfb
+      - name: Start Desktop with its window
+        run: |
+          Xvfb :99 -screen 0 1920x1080x24 &
+          export DISPLAY=:99
+          exe="$(ls "$PWD"/out/OctantPath.Desktop-*-linux-x64)"
+          chmod +x "$exe"
+          data="$(mktemp -d)"
+          for _ in $(seq 20); do [ -S /tmp/.X11-unix/X99 ] && break; sleep 0.5; done
+          "$exe" --data "$data" > "$data/log" 2>&1 &
+          pid=$!
+          fail() { echo "::error::$1"; cat "$data/log"; kill "$pid" 2>/dev/null; exit 1; }
+          for _ in $(seq 60); do
+            curl -fsS http://127.0.0.1:5791/ > /dev/null && break
+            kill -0 "$pid" 2>/dev/null || fail "Desktop ended before it answered"
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:5791/ > /dev/null || fail "Desktop did not answer"
+          sleep 5
+          kill -0 "$pid" 2>/dev/null || fail "the window did not stay open"
+          shown="$(curl -fsS -X POST -H "Content-Type: application/json" -d "{}" http://127.0.0.1:5791/api/window/show)" \
+            || fail "Desktop did not answer about its window"
+          [ "$shown" = '{"shown":true}' ] || fail "Desktop has no window: $shown"
+          timeout 30 "$exe" --data "$data" || fail "the second start failed"
+          kill -0 "$pid" 2>/dev/null || fail "the window closed on the second start"
+          # Stopped as by Ctrl+C or the OS (SIGTERM), Desktop closes its window and ends.
+          kill "$pid"
+          for _ in $(seq 30); do kill -0 "$pid" 2>/dev/null || exit 0; sleep 0.5; done
+          fail "Desktop did not end on SIGTERM"
+      # Kept only for a tag (the Windows start and the release below) or a run by hand.
+      - if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: octantpath-desktop
+          path: out/*
+          retention-days: 1  # Actions storage on the free plan is 0.5 GB averaged over the month; each run here is ~80 MB
+
+  # The same checks on Windows, with the closing of the window in place of SIGTERM.
+  start-windows:
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+    needs: desktop
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: octantpath-desktop
+          path: out
+      - name: Start Desktop with its window
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem out/OctantPath.Desktop-*-win-x64.exe).FullName
+          $data = (New-Item -ItemType Directory (Join-Path $env:RUNNER_TEMP desktop)).FullName
+          $desktop = Start-Process $exe -ArgumentList "--data", "`"$data`"" -PassThru `
+            -RedirectStandardOutput "$data/out.log" -RedirectStandardError "$data/err.log"
+          function Fail($why) {
+            Write-Output "::error::$why"; Get-Content "$data/out.log", "$data/err.log" -ErrorAction SilentlyContinue
+            Stop-Process -Id $desktop.Id -Force -ErrorAction SilentlyContinue; exit 1
+          }
+          $answered = $false
+          foreach ($i in 1..60) {
+            try { Invoke-WebRequest http://127.0.0.1:5791/ -UseBasicParsing -TimeoutSec 3 | Out-Null; $answered = $true; break } catch {}
+            if ($desktop.HasExited) { Fail "Desktop ended before it answered" }
+            Start-Sleep 1
+          }
+          if (-not $answered) { Fail "Desktop did not answer" }
+          Start-Sleep 5
+          if ($desktop.HasExited) { Fail "the window did not stay open" }
+          $shown = Invoke-RestMethod -Method Post http://127.0.0.1:5791/api/window/show -ContentType "application/json" -Body "{}"
+          if ($shown.shown -ne $true) { Fail "Desktop has no window" }
+          $second = Start-Process $exe -ArgumentList "--data", "`"$data`"" -PassThru -Wait
+          if ($second.ExitCode -ne 0) { Fail "the second start failed" }
+          if ($desktop.HasExited) { Fail "the window closed on the second start" }
+          # Closing the window (taskkill without /F asks it to close) ends Desktop.
+          taskkill /PID $desktop.Id
+          if (-not $desktop.WaitForExit(15000)) { Fail "Desktop did not end when its window closed" }
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: start-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # the draft release
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: octantpath-desktop
+          path: out
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" out/* --repo "$GITHUB_REPOSITORY" --draft --title "OctantPath $GITHUB_REF_NAME" --notes "OctantPath Desktop $GITHUB_REF_NAME (.NET included). The MOD DLL is built on a PC with the game. The THIRD-PARTY-NOTICES files list what each executable bundles and their licences."

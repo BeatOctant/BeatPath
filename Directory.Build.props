@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <!-- ゲームのフォルダ。既定はリポジトリ直下のシンボリックリンク。BeatSaberDir で上書きできる -->
+    <BeatSaberDir Condition="'$(BeatSaberDir)' == ''">$(MSBuildThisFileDirectory)BeatSaber</BeatSaberDir>
+    <ManagedDir>$(BeatSaberDir)/Beat Saber_Data/Managed</ManagedDir>
+    <PluginsDir>$(BeatSaberDir)/Plugins</PluginsDir>
+    <!-- DLL と .pdb に入るビルドした場所のパスを /_/ に置き換える（手元の家のパスを配布物に出さない。OctantSpecs decisions.md の C13） -->
+    <PathMap>$(MSBuildThisFileDirectory)=/_/</PathMap>
+  </PropertyGroup>
+</Project>

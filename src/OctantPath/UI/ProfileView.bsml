@@ -1,0 +1,7 @@
+<bg xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:noNamespaceSchemaLocation='https://raw.githubusercontent.com/monkeymanboy/BSML-Docs/gh-pages/BSMLSchema.xsd'>
+  <vertical child-control-height='true' child-expand-height='false' child-align='UpperCenter' spacing='2' pad-top='6' pad-left='6' pad-right='6'>
+    <text text='~title-text' font-size='5' align='Center' preferred-height='7'/>
+    <text text='~profile-text' font-size='3.5' align='TopLeft' word-wrapping='true' preferred-height='42' rich-text='true'/>
+    <button text='~refresh-text' on-click='refresh-click' interactable='~refresh-interactable' preferred-width='40' preferred-height='8'/>
+  </vertical>
+</bg>

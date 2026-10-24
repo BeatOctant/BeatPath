@@ -1,0 +1,2 @@
+# Shell scripts keep LF on every OS: a CRLF checkout (Windows with core.autocrlf) breaks them in bash.
+*.sh text eol=lf

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unity に依存しない部品。MOD はこのソースを直接取り込み、テストはこのプロジェクトを参照する -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>9</LangVersion>
+    <RootNamespace>OctantPath.Core</RootNamespace>
+  </PropertyGroup>
+
+  <!-- 画面の文（言語ごと）。MOD も同じ名前で埋め込む -->
+  <ItemGroup>
+    <EmbeddedResource Include="Languages/*.json" LogicalName="OctantPath.Lang.%(Filename).json" />
+  </ItemGroup>
+
+  <!-- 設定の既定値（OctantPathSettings が読む）。MOD も同じ名前で埋め込む -->
+  <ItemGroup>
+    <EmbeddedResource Include="Settings/defaults.json" LogicalName="OctantPath.Settings.defaults.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
+    <PackageReference Include="System.Net.Http" Version="4.3.4" />
+    <PackageReference Include="System.IO.Compression" Version="4.3.0" />
+  </ItemGroup>
+
+</Project>

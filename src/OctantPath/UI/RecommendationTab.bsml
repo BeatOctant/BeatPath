@@ -1,0 +1,43 @@
+<bg xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:noNamespaceSchemaLocation='https://raw.githubusercontent.com/monkeymanboy/BSML-Docs/gh-pages/BSMLSchema.xsd'>
+  <!-- 曲選択の画面の上に浮かぶ、ミックスの板（120 x 71、並びの一覧を出さないときは 120 x 45）。ボタンの列は幅を足して 116 以内に収める。一覧はジョイスティックでめくれるので、めくるボタンは置かない -->
+  <vertical child-control-height='true' child-expand-height='false' child-align='UpperCenter' spacing='0' pad='2'>
+    <!-- 上の列: 機能のボタン（取得・保存・見せ方・移動）。推薦のカード（下のタイル）とは違う、BSML の普通のボタン -->
+    <horizontal spacing='0' preferred-height='7' child-expand-width='false'>
+      <horizontal spacing='1' preferred-width='101' preferred-height='7' child-expand-width='false' child-align='MiddleLeft'>
+        <button text='{{panel.get}}' active='~list-visible' on-click='play-click' interactable='~play-interactable' preferred-width='18' preferred-height='7' hover-hint='{{panel.getHint}}'/>
+        <button text='{{panel.save}}' on-click='save-click' interactable='~mix-interactable' preferred-width='16' preferred-height='7' hover-hint='{{panel.saveHint}}'/>
+        <button text='~filter-text' active='~list-visible' on-click='filter-click' interactable='~mix-interactable' preferred-width='24' preferred-height='7' hover-hint='{{panel.filterHint}}'/>
+        <!-- ミックスの曲を遊び終えたら、次の曲を自動で選ぶか（settings の mixAutoAdvance）。押すたびに入と切が替わる。
+             入切は文字で書かず、丸い札の色で出す（入は OctantPath の青、切は背景に溶ける板と灰色の文字。2026-10-18） -->
+        <!-- 札は並びの残りの幅いっぱいに伸びた（2026-10-18）。stack（HMUI.StackLayoutGroup）は子を広げる設定のとき伸びる幅（flexible）を 1 以上で返すので、札とその外側の並びの伸びる幅を 0 にする -->
+        <horizontal preferred-width='22' preferred-height='7' flexible-width='0' child-expand-width='false' child-align='MiddleCenter'>
+          <stack preferred-width='22' preferred-height='5.5' flexible-width='0'>
+            <image id='auto-next-plate' src='#RoundRect10'/>
+            <clickable-text id='auto-next-label' text='{{panel.autoNext}}' on-click='auto-next-click' font-size='3' align='Center' hover-hint='~auto-next-hint'/>
+          </stack>
+        </horizontal>
+      </horizontal>
+      <horizontal spacing='1' preferred-width='15' preferred-height='7' child-expand-width='false' child-align='MiddleRight'>
+        <!-- 置き直す: 移動にしている間だけ、ピンの左に出す。押すと板を最初の位置（曲選択の画面の上）へ戻す（2026-10-24） -->
+        <stack active='~reset-visible' preferred-width='7' preferred-height='7'>
+          <image id='reset-plate' src='#RoundRect10' image-color='#FFFFFF08'/>
+          <clickable-image src='OctantPath.Icons.reset.png' on-click='reset-click' preserve-aspect='true' hover-hint='{{panel.resetHint}}'/>
+        </stack>
+        <!-- 固定と移動の切り替え。絵は傾けた押しピン 1 つ（OctantPath の絵。Icons）。今どちらかは説明の文で出す。
+             下線の付く BSML の button は使わず、背景にほぼ溶ける正方形の板に押せる絵を重ねる（2026-10-16）。
+             幅を足して 116（左の並びが 101、置き直すとピンが 7 ずつと隙間 1）。ピンは右の端に寄せる -->
+        <stack preferred-width='7' preferred-height='7'>
+          <image id='pin-plate' src='#RoundRect10' image-color='#FFFFFF08'/>
+          <clickable-image src='OctantPath.Icons.pin.png' on-click='pin-click' preserve-aspect='true' hover-hint='~pin-hint'/>
+        </stack>
+      </horizontal>
+    </horizontal>
+    <!-- 推薦のカード: 「ミックス」（選んでいる曲から）と、曲を起点にしない種類（OctantCompass の一覧のうち、起点が要らないもの）。どれも押すと中央の小窓が出る -->
+    <!-- 文字は縮めず、2 行に分けて並べる（OctantPath.Core.UI.HomeTiles） -->
+    <horizontal id='home-row' spacing='1' preferred-width='116' preferred-height='8' child-expand-width='false' child-align='MiddleLeft'/>
+    <horizontal id='home-row-2' spacing='1' preferred-width='116' preferred-height='8' child-expand-width='false' child-align='MiddleLeft'/>
+    <text text='~header-text' font-size='3.2' align='Center' word-wrapping='true' preferred-width='112' preferred-height='6'/>
+    <list id='list' active='~list-visible' select-cell='select-cell' visible-cells='3' cell-size='7.5' list-style='List' preferred-width='112' preferred-height='24'/>
+    <text text='~detail-text' font-size='3' align='Center' word-wrapping='true' preferred-width='112' preferred-height='8'/>
+  </vertical>
+</bg>
