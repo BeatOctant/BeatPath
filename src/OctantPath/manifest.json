@@ -3,7 +3,7 @@
   "id": "OctantPath",
   "name": "OctantPath",
   "author": "nejiman10",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "description": "OctantCompass から推薦を受け取り、お試しのマップを入れ替える MOD",
   "gameVersion": "1.40.8",
   "dependsOn": {
