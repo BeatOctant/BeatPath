@@ -33,6 +33,28 @@ namespace OctantPath.Core.Connection
             }
         }
 
+        // 状態の文の 2 行目に出す、次にすること（なければ null）。長い補足はカッコ書きにせず、行を分けて出す
+        public static string Hint(ConnectionStatus status)
+        {
+            return status.State == ConnectionState.Unreachable ? Lang.T("connection.unreachableHint") : null;
+        }
+
+        // 状態の大まかな分け方（画面の印と色に使う）。使える / 待っているか、人の操作が要る / 使えない
+        public static StatusTone Tone(ConnectionStatus status)
+        {
+            switch (status.State)
+            {
+                case ConnectionState.Ready:
+                    return StatusTone.Ready;
+                case ConnectionState.Unknown:
+                case ConnectionState.Loading:
+                case ConnectionState.NeedsPairing:
+                    return StatusTone.Waiting;
+                default:
+                    return StatusTone.Problem;
+            }
+        }
+
         private static string ApiMismatch(string host, string ours)
         {
             if (host != null && ContractVersion.TryParse(host, out var h) && h.Major != ContractVersion.Api.Major)
@@ -42,5 +64,12 @@ namespace OctantPath.Core.Connection
             }
             return Lang.T("connection.apiMismatch", new { ours });
         }
+    }
+
+    public enum StatusTone
+    {
+        Ready,
+        Waiting,
+        Problem,
     }
 }

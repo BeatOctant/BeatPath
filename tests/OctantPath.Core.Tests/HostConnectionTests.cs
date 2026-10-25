@@ -152,6 +152,29 @@ namespace OctantPath.Core.Tests
             Assert.Contains("Update OctantPath", StatusText.Describe(status));
         }
 
+        [Theory]
+        [InlineData(ConnectionState.Ready, StatusTone.Ready)]
+        [InlineData(ConnectionState.Unknown, StatusTone.Waiting)]
+        [InlineData(ConnectionState.Loading, StatusTone.Waiting)]
+        [InlineData(ConnectionState.NeedsPairing, StatusTone.Waiting)]
+        [InlineData(ConnectionState.Unreachable, StatusTone.Problem)]
+        [InlineData(ConnectionState.PairingRejected, StatusTone.Problem)]
+        [InlineData(ConnectionState.ApiVersionMismatch, StatusTone.Problem)]
+        [InlineData(ConnectionState.Degraded, StatusTone.Problem)]
+        public void SortsTheStateForItsMark(ConnectionState state, StatusTone tone)
+        {
+            Assert.Equal(tone, StatusText.Tone(new ConnectionStatus { State = state }));
+        }
+
+        [Fact]
+        public void PutsWhatToCheckOnItsOwnLine()
+        {
+            var unreachable = new ConnectionStatus { State = ConnectionState.Unreachable };
+            Assert.DoesNotContain("(", StatusText.Describe(unreachable));
+            Assert.NotNull(StatusText.Hint(unreachable));
+            Assert.Null(StatusText.Hint(new ConnectionStatus { State = ConnectionState.Ready }));
+        }
+
         [Fact]
         public async Task StopsOnA426()
         {

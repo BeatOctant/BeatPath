@@ -22,7 +22,8 @@ namespace OctantPath.UI
         private static readonly string Bsml = @"<bg>
   <vertical child-control-height='true' child-expand-height='false' child-align='UpperCenter' spacing='0' pad='2'>
     <text text='~title-text' font-size='3' align='Center' word-wrapping='true' preferred-width='96' preferred-height='7'/>
-    <custom-list id='list' contents='cells' select-cell='select-cell' visible-cells='3' cell-size='" + Core.UI.Popup.F(Core.UI.Popups.DraftCellSize) + "' clickable-cells='true' list-width='96' list-height='" + Core.UI.Popup.F(3 * Core.UI.Popups.DraftCellSize) + "' preferred-width='96' preferred-height='" + Core.UI.Popup.F(3 * Core.UI.Popups.DraftCellSize) + @"'>
+    <text text='~notice-text' active='~notice-visible' font-size='3' color='#BBBBBB' align='Center' word-wrapping='true' preferred-width='96' preferred-height='" + Core.UI.Popup.F(3 * Core.UI.Popups.DraftCellSize) + @"'/>
+    <custom-list id='list' active='~list-visible' contents='cells' select-cell='select-cell' visible-cells='3' cell-size='" + Core.UI.Popup.F(Core.UI.Popups.DraftCellSize) + "' clickable-cells='true' list-width='96' list-height='" + Core.UI.Popup.F(3 * Core.UI.Popups.DraftCellSize) + "' preferred-width='96' preferred-height='" + Core.UI.Popup.F(3 * Core.UI.Popups.DraftCellSize) + @"'>
       " + DraftCell.Template + @"
     </custom-list>
     <text text='~detail-text' font-size='2.4' align='Center' word-wrapping='true' preferred-width='96' preferred-height='4'/>
@@ -54,6 +55,8 @@ namespace OctantPath.UI
         private bool _previewing;
         private string _title = "";
         private string _detail = "";
+        // おすすめを出せないときの理由。null でなければ、一覧の場所にこれを出して板（枠）は残す（2026-10-25）
+        private string _notice;
 
         [UIComponent("list")]
         private CustomCellListTableData _list;
@@ -100,8 +103,18 @@ namespace OctantPath.UI
         [UIValue("detail-text")]
         public string DetailText => _detail;
 
+        [UIValue("notice-text")]
+        public string NoticeText => _notice ?? "";
+
+        [UIValue("notice-visible")]
+        public bool NoticeVisible => _notice != null;
+
+        [UIValue("list-visible")]
+        public bool ListVisible => _notice == null;
+
         public void Show(string title, List<RecommendationItem> items, string detail)
         {
+            SetNotice(null);
             _title = title;
             _items = items ?? new List<RecommendationItem>();
             _chosenItem = null;
@@ -111,6 +124,21 @@ namespace OctantPath.UI
             Fill();
             NotifyPropertyChanged(nameof(TitleText));
             NotifyPropertyChanged(nameof(DetailText));
+        }
+
+        // おすすめを出せない譜面でも板は出し、一覧の場所に「出せない」と理由を出す（結果画面の間だけ。次に遊び始めると Show で消える）
+        public void ShowUnavailable(string title, string reason)
+        {
+            Show(title, new List<RecommendationItem>(), "");
+            SetNotice(Lang.T("next.unavailable") + (string.IsNullOrEmpty(reason) ? "" : $"\n<size=85%>{reason}</size>"));
+        }
+
+        private void SetNotice(string notice)
+        {
+            _notice = notice;
+            NotifyPropertyChanged(nameof(NoticeText));
+            NotifyPropertyChanged(nameof(NoticeVisible));
+            NotifyPropertyChanged(nameof(ListVisible));
         }
 
         public void SetDetail(string detail)
@@ -177,7 +205,7 @@ namespace OctantPath.UI
                     return;
                 }
             }
-            var show = _results.isActivated && _results.isInViewControllerHierarchy && _items.Count > 0;
+            var show = _results.isActivated && _results.isInViewControllerHierarchy && (_items.Count > 0 || _notice != null);
             if (_panel == null)
             {
                 if (!show)

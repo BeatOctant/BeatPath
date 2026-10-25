@@ -28,7 +28,7 @@
   "cdnTimeoutSeconds": 30,
   "arcViewerFileTimeoutSeconds": 600,
   "mixPrefetchCount": 5,
-  "mixDraftCount": 10,
+  "mixDraftCount": 5,
   "mixListOnPanel": false,
   "mixAutoAdvance": true,
   "recommendationPanelScale": 1.5,

@@ -28,7 +28,7 @@ Beat Saber（PC）1.40.8 の MOD と、ゲームを起動せずに推薦を見�
 | OctantCompass | 最新 | [契約3（OctantPath ↔ OctantCompass）](https://github.com/BeatOctant/OctantSpecs/blob/main/contracts/mod-api.md) 2.0、[契約6（つなぐ側 ↔ OctantCompass）](https://github.com/BeatOctant/OctantSpecs/blob/main/contracts/launch.md) 2.0 |
 | OctantSpecs | `OCTANTSPECS_REF`（`main`） | テストが読む契約3 の例 |
 
-このリポジトリの今の版は v0.1.0。
+このリポジトリの今の版は v0.1.1。
 
 ## ビルド
 

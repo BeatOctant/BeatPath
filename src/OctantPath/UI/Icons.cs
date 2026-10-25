@@ -13,6 +13,8 @@ namespace OctantPath.UI
         public const string Play = "play";
         public const string Discard = "discard";
         public const string Add = "add";
+        public const string StatusReady = "status-ready";
+        public const string StatusWaiting = "status-waiting";
 
         private static readonly Dictionary<string, UnityEngine.Sprite> Loaded = new Dictionary<string, UnityEngine.Sprite>();
 

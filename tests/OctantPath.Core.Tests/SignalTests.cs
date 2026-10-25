@@ -28,6 +28,14 @@ namespace OctantPath.Core.Tests
         }
 
         [Fact]
+        public void WritesClearedOnlyWhenSet()
+        {
+            var imported = JObject.FromObject(new SignalEvent { Type = SignalTypes.ImportedPlay, Hash = "a", Count = 3, Cleared = true });
+            Assert.True((bool)imported["cleared"]);
+            Assert.False(JObject.FromObject(new SignalEvent { Type = SignalTypes.Play, Hash = "a" }).ContainsKey("cleared"));
+        }
+
+        [Fact]
         public void ReadsTheSignalsResponse()
         {
             var response = JsonConvert.DeserializeObject<SignalsResponse>(OctantSpecsExamples.Text("signals.response.json"));

@@ -307,7 +307,8 @@ namespace OctantPath.Signals
             CollectFavorites("PlayerData");
             CollectVotes("votedSongs");
 
-            // PlayerData のプレイ回数。途中終了も含むが、初めの手がかりとして取り込む（契約1（OctantCompass to OctantVector）の好みの判定ルール）
+            // PlayerData のプレイ回数。途中終了も含むが、初めの手がかりとして取り込む（契約1（OctantCompass to OctantVector）の好みの判定ルール）。
+            // スコアがあれば（validScore）一度はクリアした譜面として cleared を付ける。日付と修飾は分からない
             foreach (var stats in _playerDataModel.playerData.levelsStatsData.Values)
             {
                 var hash = LevelIds.Hash(stats.levelID);
@@ -323,6 +324,7 @@ namespace OctantPath.Signals
                     Characteristic = stats.beatmapCharacteristic.serializedName,
                     Difficulty = stats.difficulty.ToString(),
                     Count = stats.playCount,
+                    Cleared = stats.validScore,
                     At = at,
                 });
             }

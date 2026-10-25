@@ -129,3 +129,16 @@ nx, ny = -ty, tx
 tip = (ex + tx * 20, ey + ty * 20)
 stroke(d, [(tip[0] - tx * 72 + nx * 72, tip[1] - ty * 72 + ny * 72), tip, (tip[0] - tx * 72 - nx * 72, tip[1] - ty * 72 - ny * 72)])
 save(im, "reset")
+
+# 接続の状態の印（MOD 画面。色だけに頼らず形でも分ける。2026-10-25）
+# 使える: チェック
+im, d = canvas()
+stroke(d, [(104, 268), (212, 376), (412, 156)], W + 6)
+save(im, "status-ready")
+
+# 待ち・要る操作がある: 三角の輪郭（中に縦の線と点）
+im, d = canvas()
+ring(d, [(256, 84), (440, 404), (72, 404)])
+stroke(d, [(256, 196), (256, 304)])
+d.rectangle([256 - W / 2, 334, 256 + W / 2, 334 + W], fill=255)
+save(im, "status-waiting")

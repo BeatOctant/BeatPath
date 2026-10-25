@@ -21,6 +21,8 @@ namespace OctantPath.Core.Signals
         [JsonProperty("accuracy", NullValueHandling = NullValueHandling.Ignore)] public double? Accuracy { get; set; }
         [JsonProperty("stage", NullValueHandling = NullValueHandling.Ignore)] public string Stage { get; set; }
         [JsonProperty("count", NullValueHandling = NullValueHandling.Ignore)] public int? Count { get; set; }
+        // imported_play の、PlayerData にその譜面のスコアがあること（修飾ありも含めて一度はクリアした）。OctantVector が実力の初めの手がかりにする（2026-10-25）
+        [JsonProperty("cleared", NullValueHandling = NullValueHandling.Ignore)] public bool? Cleared { get; set; }
         [JsonProperty("at")] public DateTime At { get; set; }
     }
 

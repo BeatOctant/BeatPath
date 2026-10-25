@@ -32,7 +32,20 @@ namespace OctantPath.UI
         public string RefreshText => Lang.T("connectionView.refresh");
 
         [UIValue("status-text")]
-        public string StatusText => _problem ?? Core.Connection.StatusText.Describe(_connection.Status);
+        public string StatusText => _problem ?? WithHint(Core.Connection.StatusText.Describe(_connection.Status), Core.Connection.StatusText.Hint(_connection.Status));
+
+        private static string WithHint(string text, string hint) => hint == null ? text : $"{text}\n<size=75%>{hint}</size>";
+
+        [UIComponent("status-icon")]
+        private HMUI.ImageView _statusIcon;
+
+        [UIComponent("status")]
+        private TMPro.TextMeshProUGUI _statusText;
+
+        // 状態の印と色。色だけに頼らず、印の形でも分ける
+        private static readonly UnityEngine.Color ReadyColor = new UnityEngine.Color(0.357f, 0.82f, 0.357f, 1f);
+        private static readonly UnityEngine.Color WaitingColor = new UnityEngine.Color(1f, 0.784f, 0.271f, 1f);
+        private static readonly UnityEngine.Color ProblemColor = new UnityEngine.Color(1f, 0.42f, 0.42f, 1f);
 
         // 契約6（client to OctantCompass）2.0: つなぐ先（空なら同じ PC の既定）と、OctantCompass の画面に出る合言葉を入れてペアリングする
         [UIValue("address-text")]
@@ -78,8 +91,11 @@ namespace OctantPath.UI
                 if (s.Endpoint != null) parts.Add(s.Endpoint);
                 if (s.HostVersion != null) parts.Add($"OctantCompass {s.HostVersion} (API {s.HostApiVersion})");
                 if (s.DbVersion != null) parts.Add($"DB {s.DbVersion}");
-                if (s.Detail != null) parts.Add(s.Detail);
-                if (_signals.Problem != null) parts.Add(_signals.Problem);
+                // つながらないときの技術的な理由（Error/ConnectionFailure など）は上の状態の行と同じことなので出さない（ログには残る）。
+                // 信号を送れなかった理由も、つながらないことと同じなら出さない
+                var unreachable = s.State == ConnectionState.Unreachable;
+                if (s.Detail != null && !unreachable) parts.Add(s.Detail);
+                if (_signals.Problem != null && !(unreachable && (_signals.Problem == s.Detail || _signals.Problem == Lang.T("connection.notConnected")))) parts.Add(_signals.Problem);
                 return string.Join("\n", parts);
             }
         }
@@ -174,8 +190,29 @@ namespace OctantPath.UI
 
         private void HandleStatusChanged(ConnectionStatus status) => Notify();
 
+        private void ShowTone()
+        {
+            var tone = _problem != null ? StatusTone.Problem : Core.Connection.StatusText.Tone(_connection.Status);
+            var color = tone == StatusTone.Ready ? ReadyColor : tone == StatusTone.Waiting ? WaitingColor : ProblemColor;
+            if (_statusIcon != null)
+            {
+                var sprite = Icons.Find(tone == StatusTone.Ready ? Icons.StatusReady : tone == StatusTone.Waiting ? Icons.StatusWaiting : Icons.Discard);
+                _statusIcon.gameObject.SetActive(sprite != null);
+                if (sprite != null)
+                {
+                    _statusIcon.sprite = sprite;
+                    _statusIcon.color = color;
+                }
+            }
+            if (_statusText != null)
+            {
+                _statusText.color = color;
+            }
+        }
+
         private void Notify()
         {
+            ShowTone();
             NotifyPropertyChanged(nameof(StatusText));
             NotifyPropertyChanged(nameof(DetailText));
             NotifyPropertyChanged(nameof(RefreshInteractable));

@@ -189,7 +189,7 @@ namespace OctantPath.UI
                 return false;
             }
             var text = status.State != Core.Connection.ConnectionState.Ready
-                ? $"{Lang.T("connection.unreachable")}\n<size=80%>{Core.Connection.StatusText.Describe(status)}</size>"
+                ? $"{Lang.T("connection.unreachable")}\n<size=80%>{Core.Connection.StatusText.Hint(status) ?? Core.Connection.StatusText.Describe(status)}</size>"
                 : _connection.PresetsProblem ?? Lang.T("presets.none");
             Toast(text);
             _ = _connection.RefreshNowAsync();
@@ -693,6 +693,11 @@ namespace OctantPath.UI
         private RecommendationItem _selected;
         private string _lastPlayedHash;
         private ChartRef _lastPlayedChart;
+        // 普通のプレイ（StandardLevel）を始めて、まだ結果画面のおすすめを出していない。カスタム曲でなくても立てる（出せないと見せるため）
+        private bool _resultsPending;
+        // 最後に始めた曲が、ミックスのプレイリストを表示している中で始めたミックスの曲なら、その曲（ほかは null）。
+        // 次の曲へ進むのも、結果画面で選んだ曲をミックスに入れるのも、このときだけ（ほかの一覧で遊んだときは、その一覧のまま）
+        private RecommendationItem _playedInMix;
         // ミックスのプレイリスト（曲選択を開き直すときの行き先）
         private BeatmapLevelPack _mixPack;
         // 結果画面で選んだ曲を、まだミックスのプレイリストのファイルに書いていない
@@ -1770,12 +1775,16 @@ namespace OctantPath.UI
             }
         }
 
-        // 並びの曲にする: 入っていなければ取ってから、曲選択でその曲を選ぶ。そのあと先の曲を前もって取る
-        private async System.Threading.Tasks.Task PlayItemAsync(RecommendationItem item)
+        // 並びの曲にする: 入っていなければ取ってから、曲選択でその曲を選ぶ。そのあと先の曲を前もって取る。
+        // inMix が false のとき（ミックスの外で遊んだ曲の結果画面で選んだ曲）は、今の一覧で選ぶだけ。並びの ▶ は動かさない
+        private async System.Threading.Tasks.Task PlayItemAsync(RecommendationItem item, bool inMix = true)
         {
-            _selected = item;
-            _mix?.Select(item);
-            _offMix = false;
+            if (inMix)
+            {
+                _selected = item;
+                _mix?.Select(item);
+                _offMix = false;
+            }
             Notify();
             if (!item.Installed)
             {
@@ -1792,11 +1801,19 @@ namespace OctantPath.UI
                     Notify();
                     return;
                 }
-                if (_selected != item)
+                if (inMix && _selected != item)
                 {
                     // 待っている間に別の曲を選んだ
                     return;
                 }
+            }
+            if (!inMix)
+            {
+                _message = SongSelect.Select(item.Hash, item.Candidate.Characteristic, item.Candidate.Difficulty, null) ? Lang.T("select.done") : Lang.T("select.failed");
+                SongSelect.RedrawCovers(new[] { item.Hash });
+                FillList();
+                Notify();
+                return;
             }
             if (_mix != null && _mixPlaylistStale)
             {
@@ -1861,6 +1878,17 @@ namespace OctantPath.UI
                 _lastPlayedHash = Core.Maps.LevelIds.Hash(standard.beatmapKey.levelId);
                 _lastPlayedChart = _lastPlayedHash == null || standard.beatmapKey.beatmapCharacteristic == null ? null
                     : new ChartRef { Hash = _lastPlayedHash, Characteristic = standard.beatmapKey.beatmapCharacteristic.serializedName, Difficulty = standard.beatmapKey.difficulty.ToString() };
+                _resultsPending = true;
+                _playedInMix = MixItemInMixList(_lastPlayedHash);
+                if (_playedInMix != null && _playedInMix != _selected)
+                {
+                    // ミックスのプレイリストで、ゲームの一覧から並びの別の曲を選んで始めた。そこを今の曲にする
+                    _selected = _playedInMix;
+                    _mix.Select(_selected);
+                    _offMix = false;
+                    FillList();
+                    Notify();
+                }
                 // 下見から遊んだ曲を始めた。ほかの曲を始めたら、下見には戻らない
                 _draftResumeArmed = _draftResumeHash != null && _draftResumeHash == _lastPlayedHash;
                 if (!_draftResumeArmed)
@@ -1879,19 +1907,43 @@ namespace OctantPath.UI
                 _draftResumeArmed = false;
                 _draftResumePending = true;
             }
-            if (type == GameScenesManager.SceneTransitionType.Pop && _lastPlayedChart != null)
+            if (type == GameScenesManager.SceneTransitionType.Pop && _resultsPending)
             {
+                _resultsPending = false;
                 var played = _lastPlayedChart;
                 _lastPlayedChart = null;
-                _ = LoadResultsAsync(played);
+                if (played != null)
+                {
+                    _ = LoadResultsAsync(played);
+                }
+                else
+                {
+                    // カスタム曲でない（hash がない）譜面。推薦は問い合わせず、出せないことだけを出す
+                    _resultsPanel.ShowUnavailable(Lang.T("next.titlePlain"), Lang.T("next.notCustom"));
+                }
             }
-            if (type != GameScenesManager.SceneTransitionType.Pop || _mix == null || _selected == null || _lastPlayedHash != _selected.Hash)
+            if (type != GameScenesManager.SceneTransitionType.Pop || _lastPlayedHash == null || _playedInMix == null)
             {
                 return;
             }
             _lastPlayedHash = null;
             // 自動で次へ進むのを切っているときは、結果画面で選んだ曲だけ選ぶ（ChooseFromResults）
             _advancePending = _settingsHolder.Current.MixAutoAdvance;
+        }
+
+        // 曲選択がミックスのプレイリストを表示しているとき、その hash のミックスの曲（ほかは null）
+        private RecommendationItem MixItemInMixList(string hash)
+        {
+            if (_mix == null || _mixPack == null || hash == null || _levelSelection == null)
+            {
+                return null;
+            }
+            var shown = _levelSelection.selectedBeatmapLevelPack;
+            if (shown == null || shown.packID != _mixPack.packID)
+            {
+                return null;
+            }
+            return _mix.All.FirstOrDefault(i => i.Hash == hash);
         }
 
         [UIValue("auto-next-hint")]
@@ -1985,6 +2037,8 @@ namespace OctantPath.UI
                     : presets.FirstOrDefault(p => PresetRules.UsesSeed(p) && PresetRules.Choices(p).Count == 0);
                 if (preset == null)
                 {
+                    var status = _connection.Status;
+                    _resultsPanel.ShowUnavailable(Lang.T("next.titlePlain"), status.State != Core.Connection.ConnectionState.Ready ? Core.Connection.StatusText.Describe(status) : Lang.T("recommend.none"));
                     return;
                 }
                 var request = PresetRules.Request(preset, played, null, ResultsCount);
@@ -1999,14 +2053,16 @@ namespace OctantPath.UI
                 if (items.Count == 0)
                 {
                     Plugin.Log.Info($"[results] no recommendations: {result.Error ?? (result.Items.Count == 0 ? "empty" : $"BeatSaver does not know all {result.Items.Count}")}");
-                    _resultsPanel.Show("", new List<RecommendationItem>(), null);
+                    // 出せなくても板（枠）は残し、理由を出す（2026-10-25）
+                    _resultsPanel.ShowUnavailable(Lang.T("next.title", new { preset = preset.Label }), result.Error ?? Lang.T("recommend.none"));
                     return;
                 }
                 foreach (var item in items)
                 {
                     _signals.RecordRecommendation(item.RequestId, item.Preset, item.Hash, item.Candidate.Characteristic, item.Candidate.Difficulty, "shown");
                 }
-                var next = _mix?.Next();
+                // 選ばなければ進む曲。ミックスのプレイリストで遊んだときだけ進む
+                var next = _playedInMix != null && _settingsHolder.Current.MixAutoAdvance ? _mix?.Next() : null;
                 _resultsPanel.Show(Lang.T("next.title", new { preset = preset.Label }), items, next != null ? Lang.T("next.hintWithNext", new { next = next.Title }) : Lang.T("next.hint"));
                 Plugin.Log.Info($"[results] {preset.Id} requestId={result.Response?.RequestId} seed={played.Hash} candidates={items.Count} leftOut={result.Items.Count - items.Count}");
                 // 押したらすぐ聞けるように、並んだ曲の試聴を先読みする（次の曲を遊び始めて板のおすすめが替わったらやめる）
@@ -2032,7 +2088,8 @@ namespace OctantPath.UI
                 return;
             }
             _signals.RecordRecommendation(item.RequestId, item.Preset, item.Hash, item.Candidate.Characteristic, item.Candidate.Difficulty, "selected");
-            if (_mix != null)
+            // ミックスのプレイリストで遊んだ曲のときだけ、ミックスに入れる。ほかの一覧で遊んだときは、その一覧で選ぶだけ（AdvanceAsync）
+            if (_mix != null && _playedInMix != null)
             {
                 _mix.InsertNext(item);
                 _items = _mix.Visible();
@@ -2124,6 +2181,12 @@ namespace OctantPath.UI
                 {
                     item.Installed = LevelLookup.IsInstalled(item.Hash);
                 }
+            }
+            if (pick != null && (_mix == null || !_mix.All.Contains(pick)))
+            {
+                Plugin.Log.Info($"[mix] picked {pick.Hash} outside the mix");
+                await PlayItemAsync(pick, false);
+                return;
             }
             var next = pick ?? _mix.Next();
             if (next != null)
