@@ -372,37 +372,35 @@ namespace OctantPath.Core.Tests
             Assert.All(new OctantPathSettings().TrialFrames, f => Assert.Equal<int?>(0, f.Count));
         }
 
-        // 枠の id は変えずに、公式の手札を名指しする（2026-10-14）。ジャンルの枠は語が空のまま
+        // 枠の id は変えずに、公式の手札を名指しする（2026-10-14）
         [Fact]
         public void DefaultFramesNameTheOfficialHands()
         {
             var frames = new OctantPathSettings().TrialFrames;
-            Assert.Equal(new[] { "song", "genre", "chart", "difficulty" }, frames.Select(f => f.Id));
-            Assert.Equal(new[] { "song", "genre", "chart", "for_you" }, frames.Select(f => f.Preset));
-            Assert.Equal("", frames.Single(f => f.Id == "genre").Choices["genre"]);
-            Assert.All(frames.Where(f => f.Id != "genre"), f => Assert.Empty(f.Choices));
+            Assert.Equal(new[] { "song", "chart", "difficulty" }, frames.Select(f => f.Id));
+            Assert.Equal(new[] { "song", "chart", "for_you" }, frames.Select(f => f.Preset));
+            Assert.All(frames, f => Assert.Empty(f.Choices));
         }
 
-        // 公式の手札の入力の形（OctantHarvest presets/official.json）: 似た曲・似たマップは起点が任意、おすすめは入力なし、ジャンルは語を選ぶ
+        // 公式の手札の入力の形（OctantHarvest presets/official.json）: 似た曲・似たマップは起点が任意、おすすめは入力なし
         private static List<Preset> OfficialHands() => new List<Preset>
         {
             new Preset { Id = "song", Label = "Similar songs", Inputs = { new PresetInput { Kind = PresetInput.Seed, Optional = true } } },
-            new Preset { Id = "genre", Label = "Genre", Inputs = { new PresetInput { Kind = PresetInput.Choice, Name = "genre", Options = { new PresetOption { Value = "jazz music" } } } } },
             new Preset { Id = "chart", Label = "Similar maps", Inputs = { new PresetInput { Kind = PresetInput.Seed, Optional = true } } },
             new Preset { Id = "for_you", Label = "Recommended" },
         };
 
         [Fact]
-        public void DefaultFramesNeedNoSeedButTheGenreFrameNeedsAWord()
+        public void DefaultFramesNeedNoSeed()
         {
             var hands = OfficialHands();
-            var reasons = new OctantPathSettings().TrialFrames.ToDictionary(f => f.Id, f => PresetRules.Unmet(hands.Single(p => p.Id == f.Preset), f.Choices));
-            Assert.Null(reasons["song"]);
-            Assert.Null(reasons["chart"]);
-            Assert.Null(reasons["difficulty"]);
-            Assert.NotNull(reasons["genre"]);
+            Assert.All(new OctantPathSettings().TrialFrames, f => Assert.Null(PresetRules.Unmet(hands.Single(p => p.Id == f.Preset), f.Choices)));
+        }
 
-            var genre = hands.Single(p => p.Id == "genre");
+        [Fact]
+        public void AChoiceIsSentOnlyWhenItIsAnOption()
+        {
+            var genre = new Preset { Id = "genre", Label = "Genre", Inputs = { new PresetInput { Kind = PresetInput.Choice, Name = "genre", Options = { new PresetOption { Value = "jazz music" } } } } };
             Assert.Null(PresetRules.Unmet(genre, new Dictionary<string, string> { ["genre"] = "jazz music" }));
             // 一覧の選択肢にない語（DB にない語）は送らない
             Assert.NotNull(PresetRules.Unmet(genre, new Dictionary<string, string> { ["genre"] = "rock" }));

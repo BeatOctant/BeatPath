@@ -8,8 +8,8 @@ namespace OctantPath.Core.Tests
     {
         // 今の手札（OctantHarvest の official.json のうち、起点なしで出るもの）と「ミックス」
         [Theory]
-        [InlineData("ミックス", "似た曲", "ジャンル", "似たマップ", "おすすめ", "挑戦", "久しぶり")]
-        [InlineData("Mix", "Similar songs", "Genre", "Similar maps", "Recommended", "Challenge", "Revisit")]
+        [InlineData("ミックス", "似た曲", "似たマップ", "おすすめ", "好みのジャンル", "挑戦", "久しぶり")]
+        [InlineData("Mix", "Similar songs", "Similar maps", "Recommended", "Your genre", "Challenge", "Revisit")]
         public void KeepsTheTextSizeForTodaysCards(params string[] labels)
         {
             var layout = HomeTiles.Arrange(labels);

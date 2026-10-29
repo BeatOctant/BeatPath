@@ -3,6 +3,7 @@ using System.Linq;
 using OctantPath.Core.Recommendations;
 using OctantPath.Core.Languages;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace OctantPath.Core.Presets
 {
@@ -128,9 +129,10 @@ namespace OctantPath.Core.Presets
             return null;
         }
 
-        // 押されたときの要求。送るのは id と入力と OctantPath の事実（件数など）だけ。
-        // 重み・狙い・ジャンルの語は送らない（送るとプリセットの中の条件より優先されるため）
-        public static RecommendationRequest Request(Preset preset, ChartRef seed, IDictionary<string, string> choices, int count)
+        // 押されたときの要求。送るのは id と入力と OctantPath の事実（件数など）と、ユーザーの推薦の設定だけ。
+        // 重み・狙い・ジャンルの語は送らない（送るとプリセットの中の条件より優先されるため）。
+        // ceiling: 設定の難しさの上限（difficultyCeiling）。入のときだけ params の ceiling で送る（手札の params とは混ぜて使われる）
+        public static RecommendationRequest Request(Preset preset, ChartRef seed, IDictionary<string, string> choices, int count, bool ceiling = false)
         {
             return new RecommendationRequest
             {
@@ -139,6 +141,7 @@ namespace OctantPath.Core.Presets
                 Seed = UsesSeed(preset) ? seed : null,
                 Count = count,
                 Difficulty = null,
+                Params = ceiling ? new Dictionary<string, JToken> { ["ceiling"] = true } : null,
             };
         }
     }

@@ -37,7 +37,7 @@ namespace OctantPath.Core.Settings
         // OctantCompass の一覧にない手札と、起点が必須の手札は使わない
         [JsonProperty("preset")] public string Preset { get; set; }
 
-        // 手札の choice の入力に渡す値（入力の name → 値。ジャンルの枠の genre など）。必須の choice に値がなければ、その枠は使わない
+        // 手札の choice の入力に渡す値（入力の name → 値）。必須の choice に値がなければ、その枠は使わない
         [JsonProperty("choices", ObjectCreationHandling = ObjectCreationHandling.Replace)] public Dictionary<string, string> Choices { get; set; } = new Dictionary<string, string>();
     }
 
@@ -95,7 +95,7 @@ namespace OctantPath.Core.Settings
 
         // 「似ている」の枠。件数は枠ごとに指定でき、0 ならその枠を使わない。省くと trialSlotCount。
         // 既定の枠（defaults.json）は実装構想の「似ている」の分け方で、枠ごとに公式の手札を名指しする（2026-10-14）:
-        // 曲が似ている → song、ジャンルが近い → genre（語は choices の genre）、譜面が似ている → chart、難易度が合う → for_you。
+        // 曲が似ている → song、譜面が似ている → chart、難易度が合う → for_you。
         // 枠の id は台帳とプレイリストの名前（OctantPath-<id>）に使うので変えない
         // 既定ではどの枠も 0 件（使わない）。起動ごとに BeatSaver から先に取る量を、ユーザーが選んで増やすまで 0 にする（2026-10-11）
         [JsonProperty("trialFrames", ObjectCreationHandling = ObjectCreationHandling.Replace)]
@@ -191,6 +191,11 @@ namespace OctantPath.Core.Settings
         // 曲選択の上の板のボタンで切り替える
         [JsonProperty("mixAutoAdvance")]
         public bool MixAutoAdvance { get; set; }
+
+        // 難しさの上限（足切り）。入なら、どの手札でも、最近のクリアより難しい譜面（Pass で見て、最近のクリアの 97% より重いもの）を出さない。
+        // 推薦の要求の params の ceiling で送る。曲選択の上の板と Desktop のボタンで切り替える（2026-10-25）
+        [JsonProperty("difficultyCeiling")]
+        public bool DifficultyCeiling { get; set; }
 
         // 推薦の板（曲選択と結果画面の上）の大きさ。BSML の浮かぶ画面の標準（1）に対する倍率
         [JsonProperty("recommendationPanelScale")]

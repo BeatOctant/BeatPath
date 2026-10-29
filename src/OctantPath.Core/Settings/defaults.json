@@ -5,7 +5,6 @@
   "trialSlotCount": 30,
   "trialFrames": [
     { "id": "song", "name": null, "count": 0, "preset": "song", "choices": {} },
-    { "id": "genre", "name": null, "count": 0, "preset": "genre", "choices": { "genre": "" } },
     { "id": "chart", "name": null, "count": 0, "preset": "chart", "choices": {} },
     { "id": "difficulty", "name": null, "count": 0, "preset": "for_you", "choices": {} }
   ],
@@ -31,6 +30,7 @@
   "mixDraftCount": 5,
   "mixListOnPanel": false,
   "mixAutoAdvance": true,
+  "difficultyCeiling": true,
   "recommendationPanelScale": 1.5,
   "panelOpacity": 0.45,
   "language": "auto",

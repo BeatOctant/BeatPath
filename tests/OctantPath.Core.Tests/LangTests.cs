@@ -199,9 +199,9 @@ namespace OctantPath.Core.Tests
         {
             // 名前は枠の id の trialFrame.<id> で、名指しした手札の名前ではない（難易度の枠は for_you の「おすすめ」にならない）
             var frames = new Core.Settings.OctantPathSettings().TrialFrames;
-            Assert.Equal(new[] { "Similar songs", "Close genre", "Similar maps", "Right difficulty" }, frames.Select(f => f.DisplayName));
+            Assert.Equal(new[] { "Similar songs", "Similar maps", "Right difficulty" }, frames.Select(f => f.DisplayName));
             Lang.Use("ja", null);
-            Assert.Equal(new[] { "曲が似ている", "ジャンルが近い", "譜面が似ている", "難易度が合う" }, frames.Select(f => f.DisplayName));
+            Assert.Equal(new[] { "曲が似ている", "譜面が似ている", "難易度が合う" }, frames.Select(f => f.DisplayName));
             Assert.Equal("mine", new Core.Settings.TrialFrameSettings { Id = "mine" }.DisplayName);
             Assert.Equal("私の枠", new Core.Settings.TrialFrameSettings { Id = "song", Name = "私の枠" }.DisplayName);
         }

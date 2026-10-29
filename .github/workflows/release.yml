@@ -74,11 +74,18 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:5791/ > /dev/null || fail "Desktop did not answer"
+          # The server answers before the window is made, and the window waits for the X server: Xvfb makes its socket
+          # before it compiles the keymap, which took over 7 s on a busy runner (v0.1.1). So wait for the window itself.
+          for _ in $(seq 60); do
+            shown="$(curl -fsS -X POST -H "Content-Type: application/json" -d "{}" http://127.0.0.1:5791/api/window/show)" \
+              || fail "Desktop did not answer about its window"
+            [ "$shown" = '{"shown":true}' ] && break
+            kill -0 "$pid" 2>/dev/null || fail "Desktop ended before its window opened"
+            sleep 1
+          done
+          [ "$shown" = '{"shown":true}' ] || fail "Desktop has no window: $shown"
           sleep 5
           kill -0 "$pid" 2>/dev/null || fail "the window did not stay open"
-          shown="$(curl -fsS -X POST -H "Content-Type: application/json" -d "{}" http://127.0.0.1:5791/api/window/show)" \
-            || fail "Desktop did not answer about its window"
-          [ "$shown" = '{"shown":true}' ] || fail "Desktop has no window: $shown"
           timeout 30 "$exe" --data "$data" || fail "the second start failed"
           kill -0 "$pid" 2>/dev/null || fail "the window closed on the second start"
           # Stopped as by Ctrl+C or the OS (SIGTERM), Desktop closes its window and ends.
@@ -122,10 +129,16 @@ jobs:
             Start-Sleep 1
           }
           if (-not $answered) { Fail "Desktop did not answer" }
+          # The server answers before the window is made (as on Linux), so wait for the window itself
+          foreach ($i in 1..60) {
+            $shown = Invoke-RestMethod -Method Post http://127.0.0.1:5791/api/window/show -ContentType "application/json" -Body "{}"
+            if ($shown.shown -eq $true) { break }
+            if ($desktop.HasExited) { Fail "Desktop ended before its window opened" }
+            Start-Sleep 1
+          }
+          if ($shown.shown -ne $true) { Fail "Desktop has no window" }
           Start-Sleep 5
           if ($desktop.HasExited) { Fail "the window did not stay open" }
-          $shown = Invoke-RestMethod -Method Post http://127.0.0.1:5791/api/window/show -ContentType "application/json" -Body "{}"
-          if ($shown.shown -ne $true) { Fail "Desktop has no window" }
           $second = Start-Process $exe -ArgumentList "--data", "`"$data`"" -PassThru -Wait
           if ($second.ExitCode -ne 0) { Fail "the second start failed" }
           if ($desktop.HasExited) { Fail "the window closed on the second start" }

@@ -28,7 +28,7 @@ Beat Saber（PC）1.40.8 の MOD と、ゲームを起動せずに推薦を見�
 | OctantCompass | 最新 | [契約3（OctantPath ↔ OctantCompass）](https://github.com/BeatOctant/OctantSpecs/blob/main/contracts/mod-api.md) 2.0、[契約6（つなぐ側 ↔ OctantCompass）](https://github.com/BeatOctant/OctantSpecs/blob/main/contracts/launch.md) 2.0 |
 | OctantSpecs | `OCTANTSPECS_REF`（`main`） | テストが読む契約3 の例 |
 
-このリポジトリの今の版は v0.1.1。
+このリポジトリの今の版は v0.1.2。
 
 ## ビルド
 
@@ -103,7 +103,7 @@ scripts/publish-desktop.sh win-x64     # dist/win-x64/OctantPath.Desktop.exe
 | 項目 | 中身 |
 |---|---|
 | `language` | 画面の言語（`auto`・`en`・`ja` など。下の「言語」。MOD の設定画面で変えられ、OK を押すと使う） |
-| `trialFrames`・`trialSlotCount` | お試しの枠（「似ている」の分け方と件数）と、枠の件数を省いたときの件数。既定ではどの枠も 0 件。枠は手札の id（`preset`）を名指しし、choice の入力の値を `choices` に書く（例 `{"genre": "jazz music"}`）。既定の枠は公式の手札を使う: `song` → `song`、`genre` → `genre`（語は空なので、書くまで使わない）、`chart` → `chart`、`difficulty` → `for_you`。起点は送らない。OctantCompass の一覧にない手札と、入力を満たせない手札（起点が必須、choice の値が空か選択肢にない）の枠は飛ばす。枠の名前は手札の名前でなく、言語ファイルの `trialFrame.<id>`（`name` で変えられる）。前の版の重みで書いた枠（`weights`・`genre`・`params`）は読まないので、下のスクリプトで直す |
+| `trialFrames`・`trialSlotCount` | お試しの枠（「似ている」の分け方と件数）と、枠の件数を省いたときの件数。既定ではどの枠も 0 件。枠は手札の id（`preset`）を名指しし、choice の入力の値を `choices` に書く（例 `{"genre": "jazz music"}`）。既定の枠は公式の手札を使う: `song` → `song`、`chart` → `chart`、`difficulty` → `for_you`。起点は送らない。OctantCompass の一覧にない手札と、入力を満たせない手札（起点が必須、choice の値が空か選択肢にない）の枠は飛ばす。枠の名前は手札の名前でなく、言語ファイルの `trialFrame.<id>`（`name` で変えられる）。前の版の重みで書いた枠（`weights`・`genre`・`params`）は読まないので、下のスクリプトで直す |
 | `keepMinPlays`・`trialExpiryLaunchDays`・`trialMaxMegabytes` | お試しを「残す」にする遊んだ回数と、お試しの期限（起動日。MOD の設定画面では 1〜60）と、お試しの合計の上限（MB。MOD の設定画面では GB で 1〜100）。期限か合計のどちらかを超えたら、起動直後の片付けで消す。合計を超えた分は古く取ったものから消し、他のプレイリストに入っているものは消さない。settings.json があるのに読めないときと、回数や期限が 1 より小さいとき、合計の上限が正の有限の数でないときは、片付けを止めて何も消さない（「0 = 無制限」とは読まない） |
 | `autoDownload`・`deleteDryRun`・`recommendationPanelScale`・`panelOpacity` | 自動ダウンロード、削除の試し運転（既定は切。設定画面では「お試しの曲を自動で消す」を切ったもの）、推薦の板の大きさ、板の背景の不透明度（0.2〜1。どれも MOD の設定画面で変えられる） |
 | `mixDraftCount`・`mixPrefetchCount`・`mixListOnPanel`・`mixAutoAdvance` | ミックスの下見に並べる曲数、先に取る曲数（この 2 つは MOD の設定画面で変えられる）、板にミックスの一覧を出すか、遊び終えたら次の曲を自動で選ぶか（曲選択の上の板の「自動で次へ」で切り替える。切っていても結果画面で選んだ曲は選ぶ） |

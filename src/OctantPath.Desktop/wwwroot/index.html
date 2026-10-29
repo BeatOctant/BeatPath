@@ -178,6 +178,7 @@
   .tile:disabled { opacity: .4; cursor: default; }
   .tile.on { border-color: var(--accent); background: var(--accent-weak); }
   .tile .label { font-weight: 600; }
+  .ceiling { margin: 0 2px 6px; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; cursor: pointer; }
   .tile .hint { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .options { margin: 2px 0 6px 12px; padding-left: 10px; border-left: 2px solid var(--accent); display: flex; flex-direction: column; gap: 4px; }
   .options .ask { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
@@ -414,6 +415,7 @@ let draft = null;
 let selected = null;      // 下見で選んでいる行の id
 let choosing = null;      // 種類の入力を選んでいる途中 { preset, song, inputs, chosen, labels }
 let building = false;
+let lastBuild = null;      // 最後に並べた種類と入力（難しさの上限を切り替えたら、同じもので取り直す）
 let message = '';
 let savedPlaylist = null;
 let viewerFor = null;     // ArcViewer に出している曲（同じなら読み直さない）
@@ -560,6 +562,13 @@ function renderTypes() {
     return;
   }
   const busy = building || !!draft?.creating;
+  // 難しさの上限（MOD の板の「上限」の札と同じ設定）。切り替えたら、開いている下見を同じ種類で取り直す
+  const cap = document.createElement('label');
+  cap.className = 'ceiling';
+  cap.title = T(s.ceiling ? 'types.ceilingOnHint' : 'types.ceilingOffHint');
+  cap.innerHTML = `<input type="checkbox" ${s.ceiling ? 'checked' : ''} ${busy || s.readOnly ? 'disabled' : ''}><span>${H('types.ceiling')}</span>`;
+  cap.querySelector('input').onchange = (e) => setCeiling(e.target.checked);
+  box.appendChild(cap);
   addHeading(box, T('types.fromSong'), true);
   let group;
   const grouped = s.mix.some((p) => p.group);
@@ -594,7 +603,7 @@ function addPreset(box, p, song, disabled, hint) {
   if (open) box.appendChild(optionsBox());
 }
 
-// 種類の入力（ジャンルなど）。押したカードのすぐ下に、今の入力の選択肢を出す
+// 種類の入力（choice）。押したカードのすぐ下に、今の入力の選択肢を出す
 function optionsBox() {
   const c = choosing;
   const input = c.inputs[Object.keys(c.chosen).length];
@@ -636,7 +645,16 @@ function presetChosen(p, song) {
 }
 
 // ---- 下見（MOD の BuildMix と下見の小窓） ----
+async function setCeiling(on) {
+  const r = await api('/api/ceiling', { on });
+  if (r.error) { toast(r.error); renderTypes(); return; }
+  if (status) status.ceiling = r.ceiling;
+  if (draft && lastBuild && !draft.creating) { buildDraft(...lastBuild); return; }
+  renderTypes();
+}
+
 async function buildDraft(preset, choices, choiceLabel, song) {
+  lastBuild = [preset, choices, choiceLabel, song];
   viewerAuto = false;
   building = true;
   draft = null;

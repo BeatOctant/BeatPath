@@ -814,7 +814,9 @@ namespace OctantPath.UI
             SharpenPlate(_pinPlate, new UnityEngine.Vector2(PinPlateSize, PinPlateSize), "pin");
             SharpenPlate(_resetPlate, new UnityEngine.Vector2(PinPlateSize, PinPlateSize), "reset");
             SharpenPlate(_autoNextPlate, AutoNextPlateSize, "auto-next");
+            SharpenPlate(_ceilingPlate, CeilingPlateSize, "ceiling");
             ShowAutoNext();
+            ShowCeiling();
             BuildHomeButtons();
             FillList();
             AddStartMixButton();
@@ -967,6 +969,7 @@ namespace OctantPath.UI
             }
             _resultsPanel.Rescale();
             ShowAutoNext();
+            ShowCeiling();
         }
 
         [UIComponent("pin-plate")]
@@ -1353,7 +1356,7 @@ namespace OctantPath.UI
             try
             {
                 var draftCount = Core.Mix.MixDraftRules.Size(_settingsHolder.Current.MixDraftCount);
-                var request = Core.Mix.MixDraftRules.FirstRequest(preset, _mixSeed, choices, draftCount);
+                var request = Core.Mix.MixDraftRules.FirstRequest(preset, _mixSeed, choices, draftCount, _settingsHolder.Current.DifficultyCeiling);
                 var result = await _recommendations.RequestAsync(request, _lifetime.Token);
                 if (result.Error != null)
                 {
@@ -1632,7 +1635,7 @@ namespace OctantPath.UI
             _toppingUp = true;
             try
             {
-                var request = Core.Mix.MixDraftRules.TopUpRequest(_draftPreset, _draftSeed, _draftChoices, Core.Mix.MixDraftRules.Size(_settingsHolder.Current.MixDraftCount), draft.Seen.Select(i => i.Hash));
+                var request = Core.Mix.MixDraftRules.TopUpRequest(_draftPreset, _draftSeed, _draftChoices, Core.Mix.MixDraftRules.Size(_settingsHolder.Current.MixDraftCount), draft.Seen.Select(i => i.Hash), _settingsHolder.Current.DifficultyCeiling);
                 var result = await _recommendations.RequestAsync(request, _lifetime.Token);
                 if (draft != _draft)
                 {
@@ -1978,6 +1981,57 @@ namespace OctantPath.UI
             NotifyPropertyChanged(nameof(AutoNextHint));
         }
 
+        [UIValue("ceiling-hint")]
+        public string CeilingHint => Lang.T(_settingsHolder.Current.DifficultyCeiling ? "panel.ceilingOnHint" : "panel.ceilingOffHint");
+
+        [UIValue("ceiling-text")]
+        public string CeilingText => Lang.T(_settingsHolder.Current.DifficultyCeiling ? "draft.ceilingOn" : "draft.ceilingOff");
+
+        [UIComponent("ceiling-plate")]
+        private HMUI.ImageView _ceilingPlate;
+
+        [UIComponent("ceiling-label")]
+        private ClickableText _ceilingLabel;
+
+        [UIAction("ceiling-click")]
+        private void CeilingClick()
+        {
+            _settingsHolder.Save("difficultyCeiling", !_settingsHolder.Current.DifficultyCeiling);
+            ShowCeiling();
+        }
+
+        // 下見の小窓のボタン: 切り替えて、同じ種類・選択肢で下見を取り直す（今の起点で）
+        [UIAction("draft-ceiling")]
+        private void DraftCeiling()
+        {
+            CeilingClick();
+            if (_draftPreset != null && !_busy)
+            {
+                _preview.Stop();
+                _preview.StopPrefetch();
+                BuildMix(_draftPreset, _draftChoices, _draftChoiceLabel);
+            }
+        }
+
+        // 上限の札の色と文字を今の設定に合わせる（「自動で次へ」の札と同じ色）
+        private void ShowCeiling()
+        {
+            var on = _settingsHolder.Current.DifficultyCeiling;
+            if (_ceilingPlate != null)
+            {
+                _ceilingPlate.color = on ? AutoNextOnColor : AutoNextOffColor;
+            }
+            if (_ceilingLabel != null)
+            {
+                _ceilingLabel.DefaultColor = on ? UnityEngine.Color.white : AutoNextOffText;
+                _ceilingLabel.color = _ceilingLabel.DefaultColor;
+            }
+            NotifyPropertyChanged(nameof(CeilingHint));
+            NotifyPropertyChanged(nameof(CeilingText));
+        }
+
+        private static readonly UnityEngine.Vector2 CeilingPlateSize = new UnityEngine.Vector2(16f, 5.5f);
+
         // 札の色: 入は OctantPath の青（下見の試聴中の行と同じ #4C9AFF）、切は固定のボタンの板と同じ淡い白と灰色の文字
         private static readonly UnityEngine.Color AutoNextOnColor = new UnityEngine.Color(0.298f, 0.604f, 1f, 1f);
         private static readonly UnityEngine.Color AutoNextOffColor = new UnityEngine.Color(1f, 1f, 1f, 0.08f);
@@ -2041,7 +2095,7 @@ namespace OctantPath.UI
                     _resultsPanel.ShowUnavailable(Lang.T("next.titlePlain"), status.State != Core.Connection.ConnectionState.Ready ? Core.Connection.StatusText.Describe(status) : Lang.T("recommend.none"));
                     return;
                 }
-                var request = PresetRules.Request(preset, played, null, ResultsCount);
+                var request = PresetRules.Request(preset, played, null, ResultsCount, _settingsHolder.Current.DifficultyCeiling);
                 var exclude = new HashSet<string> { played.Hash };
                 if (_mix != null)
                 {

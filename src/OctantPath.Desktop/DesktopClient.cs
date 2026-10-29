@@ -101,6 +101,8 @@ namespace OctantPath.Desktop
                 // 「ミックス」の種類の小窓: 曲を起点にできる場所で出す手札（MOD の MixClick）
                 mix = PresetRules.Shown(all, true).Select(PresetView),
                 seed = _seed,
+                // 難しさの上限（settings の difficultyCeiling）。種類の上のボタンで切り替える
+                ceiling = _settings.DifficultyCeiling,
                 userData = UserData,
                 readOnly = _options.ReadOnly,
                 data = Folders.Root,
@@ -215,7 +217,7 @@ namespace OctantPath.Desktop
             }
             var choices = body["choices"]?.ToObject<Dictionary<string, string>>();
             var draftCount = MixDraftRules.Size(_settings.MixDraftCount);
-            var request = MixDraftRules.FirstRequest(preset, seed, choices, draftCount);
+            var request = MixDraftRules.FirstRequest(preset, seed, choices, draftCount, _settings.DifficultyCeiling);
             var result = await RecommendAsync(request, ct);
             if (result.Error != null)
             {
@@ -486,6 +488,18 @@ namespace OctantPath.Desktop
             };
         }
 
+        // 難しさの上限の入切（MOD の板の札と同じ settings の difficultyCeiling）。下見を開いていれば、画面が同じ種類で取り直す
+        public object SetCeiling(bool on)
+        {
+            if (_options.ReadOnly)
+            {
+                return new { error = DesktopLang.T("settings.readOnly") };
+            }
+            OctantPathSettings.SaveValue(UserData, "difficultyCeiling", on);
+            ReloadSettings();
+            return new { ceiling = _settings.DifficultyCeiling };
+        }
+
         // 1 つの項目を保存する。保存した値は次の操作からすぐ使う（Desktop は操作のたびに設定を読み直す）
         public object SaveSetting(JObject body)
         {
@@ -687,7 +701,7 @@ namespace OctantPath.Desktop
                 {
                     seen = draft.Mix.Seen.Select(i => i.Hash).ToList();
                 }
-                var request = MixDraftRules.TopUpRequest(draft.Preset, draft.Seed, draft.Choices, MixDraftRules.Size(_settings.MixDraftCount), seen);
+                var request = MixDraftRules.TopUpRequest(draft.Preset, draft.Seed, draft.Choices, MixDraftRules.Size(_settings.MixDraftCount), seen, _settings.DifficultyCeiling);
                 var result = await RecommendAsync(request, CancellationToken.None);
                 if (result.Error != null)
                 {

@@ -25,13 +25,13 @@ namespace OctantPath.Core.Mix
         public static int Size(int mixDraftCount) => Math.Max(1, mixDraftCount);
 
         // 下見を作る要求
-        public static RecommendationRequest FirstRequest(Preset preset, ChartRef seed, IDictionary<string, string> choices, int size) =>
-            PresetRules.Request(preset, seed, choices, size * FirstFactor);
+        public static RecommendationRequest FirstRequest(Preset preset, ChartRef seed, IDictionary<string, string> choices, int size, bool ceiling = false) =>
+            PresetRules.Request(preset, seed, choices, size * FirstFactor, ceiling);
 
         // 入れ替え用を足す要求。同じ種類・起点・選択肢で、今まで出したもの（MixDraft.Seen の hash）を除く
-        public static RecommendationRequest TopUpRequest(Preset preset, ChartRef seed, IDictionary<string, string> choices, int size, IEnumerable<string> seenHashes)
+        public static RecommendationRequest TopUpRequest(Preset preset, ChartRef seed, IDictionary<string, string> choices, int size, IEnumerable<string> seenHashes, bool ceiling = false)
         {
-            var request = PresetRules.Request(preset, seed, choices, size * TopUpFactor);
+            var request = PresetRules.Request(preset, seed, choices, size * TopUpFactor, ceiling);
             request.Exclude = seenHashes.Where(h => h != null).Distinct().Select(h => new ExcludeEntry { Hash = h, Reason = "in_draft" }).ToList();
             return request;
         }

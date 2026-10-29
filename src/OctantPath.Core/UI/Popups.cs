@@ -113,6 +113,8 @@ namespace OctantPath.Core.UI
     </horizontal>
     <horizontal spacing='2' preferred-width='{inner-width}' preferred-height='7' child-expand-width='false' child-align='MiddleCenter'>
       <button text='{{draft.retype}}' on-click='draft-retype' interactable='~draft-idle' preferred-width='30' preferred-height='7' hover-hint='{{draft.retypeHint}}'/>
+      <!-- 難しさの上限（settings の difficultyCeiling）の入切。押すと切り替えて、同じ種類で下見を取り直す（2026-10-25） -->
+      <button text='~ceiling-text' on-click='draft-ceiling' interactable='~draft-idle' preferred-width='24' preferred-height='7' hover-hint='~ceiling-hint'/>
       <action-button text='{{draft.create}}' on-click='draft-create' interactable='~draft-create-interactable' preferred-width='20' preferred-height='7' hover-hint='{{draft.createHint}}'/>
       <button text='{{common.close}}' on-click='draft-close' preferred-width='20' preferred-height='7'/>
     </horizontal>", BackButton("draft-back"));

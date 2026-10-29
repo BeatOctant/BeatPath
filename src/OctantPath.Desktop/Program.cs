@@ -123,6 +123,7 @@ namespace OctantPath.Desktop
             // 画面のカバーと試聴（BeatSaver の CDN）。Desktop が OctantPath の User-Agent を付けて取る
             app.MapGet("/api/cdn", (string url, HttpResponse response, CancellationToken ct) => client.Cdn.GetAsync(url, response, ct));
             app.MapGet("/api/settings", () => Json(client.SettingsView()));
+            app.MapPost("/api/ceiling", async (HttpRequest request) => Json(client.SetCeiling((bool?)(await ReadAsync(request))["on"] ?? false)));
             app.MapPost("/api/settings", async (HttpRequest request) => Json(client.SaveSetting(await ReadAsync(request))));
             // 設定のフォルダを打たずに選ぶ。OS の選択の窓を開き、選んだパスを返す（保存は画面の「保存」で）
             app.MapPost("/api/pick-folder", async (HttpRequest request) =>

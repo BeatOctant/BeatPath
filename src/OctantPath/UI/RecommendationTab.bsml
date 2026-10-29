@@ -16,6 +16,13 @@
             <clickable-text id='auto-next-label' text='{{panel.autoNext}}' on-click='auto-next-click' font-size='3' align='Center' hover-hint='~auto-next-hint'/>
           </stack>
         </horizontal>
+        <!-- 難しさの上限（settings の difficultyCeiling）。札の作りと色は「自動で次へ」と同じ。下見の小窓の下の列でも切り替えられる（2026-10-25） -->
+        <horizontal preferred-width='16' preferred-height='7' flexible-width='0' child-expand-width='false' child-align='MiddleCenter'>
+          <stack preferred-width='16' preferred-height='5.5' flexible-width='0'>
+            <image id='ceiling-plate' src='#RoundRect10'/>
+            <clickable-text id='ceiling-label' text='{{panel.ceiling}}' on-click='ceiling-click' font-size='3' align='Center' hover-hint='~ceiling-hint'/>
+          </stack>
+        </horizontal>
       </horizontal>
       <horizontal spacing='1' preferred-width='15' preferred-height='7' child-expand-width='false' child-align='MiddleRight'>
         <!-- 置き直す: 移動にしている間だけ、ピンの左に出す。押すと板を最初の位置（曲選択の画面の上）へ戻す（2026-10-24） -->

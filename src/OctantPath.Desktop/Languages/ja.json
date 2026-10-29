@@ -64,6 +64,9 @@
   "types.notReceived": "OctantCompass から種類を受け取っていません",
   "types.notConnected": "OctantCompass につながると、ここに種類が出ます",
   "types.joiner": "・",
+  "types.ceiling": "難しさの上限（最近のクリアより難しい譜面を出さない）",
+  "types.ceilingOnHint": "入: どの種類でも、最近のクリアより難しい譜面（Pass で見て、最近のクリアの 97% より重いもの）を出さない",
+  "types.ceilingOffHint": "切: 難しさの上限で外さない（難易度合わせだけ）",
 
   "draft.title": "下見",
   "draft.empty": "種類を押すと、ここに曲が並びます",

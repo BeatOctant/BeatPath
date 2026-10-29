@@ -60,7 +60,9 @@
   "draft.noMoreSwaps": "No more candidates",
   "draft.playHint": "Select this song in the song list (press PLAY to play; you come back to the draft afterwards)",
   "draft.retype": "Change type",
-  "draft.retypeHint": "Pick again with another type (genre, etc.)",
+  "draft.retypeHint": "Pick again with another type",
+  "draft.ceilingOn": "Cap: on",
+  "draft.ceilingOff": "Cap: off",
   "draft.swapHint": "Drop this song and swap in the next candidate",
   "draft.title": "Preview: {name}",
   "filter.all": "All",
@@ -122,6 +124,9 @@
   "panel.autoNext": "Auto next",
   "panel.autoNextOffHint": "Off: the next song is not selected after you finish (songs picked on the results screen still are). Press to turn on",
   "panel.autoNextOnHint": "On: after you finish a song from the mix, select the next song in the list when you are back in song select. Press to turn off",
+  "panel.ceiling": "Cap",
+  "panel.ceilingOnHint": "On: in every type, leave out maps harder than your recent clears (by Pass, heavier than 97% of them). Press to turn off",
+  "panel.ceilingOffHint": "Off: no difficulty cap (only the usual difficulty fitting). Press to turn on",
   "panel.filterHint": "Switch what the list shows: All → Familiar (installed only) → New songs (not installed yet)",
   "panel.get": "Get",
   "panel.getHint": "Download the selected song and select it in song select",
@@ -203,6 +208,5 @@
   "trial.ledgerUnreadable": "Can't read the ownership record, so the trial slots aren't filled",
   "trialFrame.chart": "Similar maps",
   "trialFrame.difficulty": "Right difficulty",
-  "trialFrame.genre": "Close genre",
   "trialFrame.song": "Similar songs"
 }

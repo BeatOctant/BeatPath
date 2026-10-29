@@ -82,6 +82,19 @@ namespace OctantPath.Core.Tests
         }
 
         [Fact]
+        public void SendsTheDifficultyCeilingOnlyWhenItIsOn()
+        {
+            var song = Example().Presets.Single(p => p.Id == "song");
+            var on = JObject.Parse(JsonConvert.SerializeObject(PresetRules.Request(song, null, null, 30, ceiling: true)));
+            Assert.True((bool)on["params"]["ceiling"]);
+            Assert.Null(on["difficulty"]);
+            var off = JObject.Parse(JsonConvert.SerializeObject(PresetRules.Request(song, null, null, 30)));
+            Assert.Null(off["params"]);
+            var more = JObject.Parse(JsonConvert.SerializeObject(Mix.MixDraftRules.TopUpRequest(song, null, null, 5, new[] { "a" }, ceiling: true)));
+            Assert.True((bool)more["params"]["ceiling"]);
+        }
+
+        [Fact]
         public void ReadsPresetsRevisionAndUnknownPreset()
         {
             var health = JsonConvert.DeserializeObject<HealthResponse>(OctantSpecsExamples.Text("health.ready.json"));

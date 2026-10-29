@@ -59,7 +59,9 @@
   "draft.noMoreSwaps": "候補の曲がもうありません",
   "draft.playHint": "曲選択でこの曲を選ぶ（PLAY で遊べます。戻ると下見に戻ります）",
   "draft.retype": "種類を変える",
-  "draft.retypeHint": "別の種類（ジャンルなど）で選び直す",
+  "draft.retypeHint": "別の種類で選び直す",
+  "draft.ceilingOn": "上限: 入",
+  "draft.ceilingOff": "上限: 切",
   "draft.swapHint": "この曲を外して、次の候補と入れ替える",
   "draft.title": "下見: {name}",
   "filter.all": "全部",
@@ -121,6 +123,9 @@
   "panel.autoNext": "自動で次へ",
   "panel.autoNextOffHint": "切: 遊び終えても次の曲を選ばない（結果画面で選んだ曲は選ぶ）。押すと入れる",
   "panel.autoNextOnHint": "入: ミックスの曲を遊び終えて曲選択に戻ったら、並びの次の曲を自動で選ぶ。押すと切る",
+  "panel.ceiling": "上限",
+  "panel.ceilingOnHint": "入: どの種類でも、最近のクリアより難しい譜面（Pass で見て、最近のクリアの 97% より重いもの）を出さない。押すと切る",
+  "panel.ceilingOffHint": "切: 難しさの上限で外さない（難易度合わせだけ）。押すと入れる",
   "panel.filterHint": "並びの見せ方を切り替える: 全部 → おなじみ（導入済みだけ） → 新しい曲（まだ入っていない曲だけ）",
   "panel.get": "取得",
   "panel.getHint": "選んだ曲を取得して、曲選択でその曲を選ぶ",
@@ -202,6 +207,5 @@
   "trial.ledgerUnreadable": "所有の記録が読めないので、お試し枠を埋めません",
   "trialFrame.chart": "譜面が似ている",
   "trialFrame.difficulty": "難易度が合う",
-  "trialFrame.genre": "ジャンルが近い",
   "trialFrame.song": "曲が似ている"
 }

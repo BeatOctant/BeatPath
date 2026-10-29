@@ -129,7 +129,7 @@ namespace OctantPath.Trials
                     SetStatus(Lang.T("trial.filling", new { frame = frame.DisplayName, current, count }));
                     // 起点は送らない。値のない choice も送らない
                     var choices = frame.Choices?.Where(c => !string.IsNullOrEmpty(c.Value)).ToDictionary(c => c.Key, c => c.Value);
-                    var request = PresetRules.Request(preset, null, choices, need);
+                    var request = PresetRules.Request(preset, null, choices, need, settings.DifficultyCeiling);
                     request.Exclude = Excluded(ledger);
                     total += await FillFrameAsync(frame.Id, need, request).ConfigureAwait(true);
                 }

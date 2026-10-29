@@ -64,6 +64,9 @@
   "types.notReceived": "No types received from OctantCompass",
   "types.notConnected": "Types appear here once OctantCompass is connected",
   "types.joiner": " · ",
+  "types.ceiling": "Difficulty cap (no maps harder than your recent clears)",
+  "types.ceilingOnHint": "On: in every type, leave out maps harder than your recent clears (by Pass, heavier than 97% of them)",
+  "types.ceilingOffHint": "Off: no difficulty cap (only the usual difficulty fitting)",
 
   "draft.title": "Draft",
   "draft.empty": "Click a type to list songs here",
