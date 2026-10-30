@@ -16,6 +16,14 @@ namespace OctantPath.Core.UI
         // 見出しの行の高さ（戻るボタンも同じ高さ）
         public const float HeaderHeight = 7f;
 
+        // 小窓の文字の大きさ。見出し、種類のタイル（名前はこの 110%、説明は 80%）、種類の見出し、下の並びのボタン。
+        // 見出し 4.4〜4.6・タイル 3.6（名前 4.1）とボタンがゲームの既定の大きさでは、文字が大きすぎて見栄えが悪かった（2026-10-30）。
+        // 下見の行の曲名（3。DraftCell）にそろえて詰め、ゲームの中で見て確かめた（2026-10-30）
+        public const float HeaderFontSize = 3.6f;
+        public const float ChoiceTileFontSize = 3f;
+        public const float ChoiceHeadingFontSize = 2.8f;
+        public const float ButtonFontSize = 3.2f;
+
         // 進み具合の帯。地は明るい灰、伸びる所は OctantPath の青（下見の試聴中の行と同じ）。地が暗く伸びる所も暗い青だと、
         // 結果画面のゲームの背景の上で帯が黒く見えて分からなかった（2026-10-18）。
         // 帯は BSML の bg（round-rect-panel）で描く。bg はゲームの板の絵を色の掛け方ごと写すので暗く出る。明るさは MOD が直す（PanelLook.Brighten）。
@@ -58,7 +66,7 @@ namespace OctantPath.Core.UI
         // 種類（と choice の入力）を選ぶ小窓。タイルは MOD がコードで choice-tiles（BSML の scroll-view の中身）に足す。
         // scroll-view の右の 8 はスクロールの帯に回し、タイルは下見の一覧の行と同じ幅・同じ左端にする（MOD が viewport を詰める）
         public static readonly Popup Choice = new Popup("choice-modal", "show-choice", "hide-choice", Width, Popup.MaxHeight, 0.5f, @"
-" + HeaderRow("~choice-seed", 4.4f) + @"
+" + HeaderRow("~choice-seed", HeaderFontSize) + @"
     <scroll-view id='choice-tiles' spacing='" + Popup.F(ChoiceTileSpacing) + @"' child-control-height='false' child-expand-height='false' child-align='UpperLeft' preferred-width='{inner-width}' preferred-height='{fill-height}'></scroll-view>", BackButton("choice-back"));
 
         // 種類の小窓のタイルの幅。下見の一覧の行と同じ幅で、同じく左に寄せる（左は縁から Popup.Margin、右はスクロールの帯の分あける）
@@ -96,7 +104,7 @@ namespace OctantPath.Core.UI
         // 下見の小窓。上は種類（何で作っているか）、下は起点。進み具合の行は作成中だけ出るが、出ているものとして高さを数える。
         // 一覧は高さを固定にするので、余りは下に回る
         public static readonly Popup Draft = new Popup("draft-modal", "show-draft", "hide-draft", Width, Popup.MaxHeight, 1f, @"
-    <vertical spacing='0' child-control-height='true' child-expand-height='false' preferred-width='{inner-width}' preferred-height='" + Popup.F(HeaderHeight + DraftSeedHeight) + @"'>" + HeaderRow("~draft-title", 4.6f) + @"
+    <vertical spacing='0' child-control-height='true' child-expand-height='false' preferred-width='{inner-width}' preferred-height='" + Popup.F(HeaderHeight + DraftSeedHeight) + @"'>" + HeaderRow("~draft-title", HeaderFontSize) + @"
     <text text='~draft-seed' font-size='3' align='Top' preferred-width='{inner-width}' preferred-height='" + Popup.F(DraftSeedHeight) + @"'/>
     </vertical>
     <horizontal preferred-width='{inner-width}' preferred-height='" + Popup.F(DraftListHeight) + @"' spacing='0' child-expand-width='false' child-align='MiddleLeft'>
@@ -112,11 +120,11 @@ namespace OctantPath.Core.UI
       <horizontal id='progress-fill' bg='round-rect-panel' bg-color='" + ProgressFillColor + @"' preferred-width='0' preferred-height='" + Popup.F(ProgressHeight) + @"'/>
     </horizontal>
     <horizontal spacing='2' preferred-width='{inner-width}' preferred-height='7' child-expand-width='false' child-align='MiddleCenter'>
-      <button text='{{draft.retype}}' on-click='draft-retype' interactable='~draft-idle' preferred-width='30' preferred-height='7' hover-hint='{{draft.retypeHint}}'/>
+      <button text='{{draft.retype}}' on-click='draft-retype' font-size='" + Popup.F(ButtonFontSize) + @"' interactable='~draft-idle' preferred-width='30' preferred-height='7' hover-hint='{{draft.retypeHint}}'/>
       <!-- 難しさの上限（settings の difficultyCeiling）の入切。押すと切り替えて、同じ種類で下見を取り直す（2026-10-25） -->
-      <button text='~ceiling-text' on-click='draft-ceiling' interactable='~draft-idle' preferred-width='24' preferred-height='7' hover-hint='~ceiling-hint'/>
-      <action-button text='{{draft.create}}' on-click='draft-create' interactable='~draft-create-interactable' preferred-width='20' preferred-height='7' hover-hint='{{draft.createHint}}'/>
-      <button text='{{common.close}}' on-click='draft-close' preferred-width='20' preferred-height='7'/>
+      <button text='~ceiling-text' on-click='draft-ceiling' font-size='" + Popup.F(ButtonFontSize) + @"' interactable='~draft-idle' preferred-width='24' preferred-height='7' hover-hint='~ceiling-hint'/>
+      <action-button text='{{draft.create}}' on-click='draft-create' font-size='" + Popup.F(ButtonFontSize) + @"' interactable='~draft-create-interactable' preferred-width='20' preferred-height='7' hover-hint='{{draft.createHint}}'/>
+      <button text='{{common.close}}' on-click='draft-close' font-size='" + Popup.F(ButtonFontSize) + @"' preferred-width='20' preferred-height='7'/>
     </horizontal>", BackButton("draft-back"));
 
         // 下見の小窓の進み具合の帯の幅（全部終わったときの長さ）

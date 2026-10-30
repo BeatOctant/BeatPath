@@ -115,6 +115,35 @@ namespace OctantPath.Core.Tests
         }
 
         [Fact]
+        public void PresetNamesFollowALanguageChangeAfterReading()
+        {
+            const string json = @"{""id"":""song"",""label"":{""en"":""Similar songs"",""ja"":""似た曲""},""group"":{""en"":""Song"",""ja"":""曲""},""inputs"":[{""kind"":""choice"",""name"":""genre"",""label"":{""en"":""Genre"",""ja"":""ジャンル""},""options"":[{""value"":""jazz music"",""label"":{""en"":""Jazz"",""ja"":""ジャズ""}}]}],""genreLabels"":{""jazz music"":{""en"":""Jazz"",""ja"":""ジャズ""}}}";
+            Lang.Use("en", null);
+            var preset = JsonConvert.DeserializeObject<Preset>(json);
+            Assert.Equal("Similar songs", preset.Label);
+            Lang.Use("ja", null);
+            Assert.Equal("似た曲", preset.Label);
+            Assert.Equal("曲", preset.Group);
+            Assert.Equal("ジャンル", preset.Inputs[0].Label);
+            Assert.Equal("ジャズ", preset.Inputs[0].Options[0].Label);
+            Assert.Equal("ジャズ", preset.GenreLabels["jazz music"]);
+            Lang.Use("en", null);
+        }
+
+        [Fact]
+        public void ReadsGenreLabelsInTheCurrentLanguage()
+        {
+            const string json = @"{""id"":""your_genre"",""genreLabels"":{""jazz music"":{""en"":""Jazz"",""ja"":""ジャズ""},""trance music"":""Trance""}}";
+            Lang.Use("ja", null);
+            var ja = JsonConvert.DeserializeObject<Preset>(json).GenreLabels;
+            Assert.Equal("ジャズ", ja["jazz music"]);
+            Assert.Equal("Trance", ja["trance music"]);
+            Lang.Use("en", null);
+            Assert.Equal("Jazz", JsonConvert.DeserializeObject<Preset>(json).GenreLabels["jazz music"]);
+            Assert.Null(JsonConvert.DeserializeObject<Preset>(@"{""id"":""all""}").GenreLabels);
+        }
+
+        [Fact]
         public void AFileInTheFolderOverridesTheBundledTextsAndAddsALanguage()
         {
             var dir = Path.Combine(Path.GetTempPath(), "octantpath-lang-" + Guid.NewGuid().ToString("N"));
@@ -177,7 +206,8 @@ namespace OctantPath.Core.Tests
             var japanese = JsonConvert.DeserializeObject<PresetsResponse>(json).Presets[0];
             Assert.Equal("似た曲", japanese.Label);
             Assert.Equal("ロック", japanese.Inputs[0].Options[0].Label);
-            Assert.Equal("似た曲", JObject.Parse(JsonConvert.SerializeObject(japanese))["label"]);
+            // 書き戻すときは受け取った形のまま（言語を変えたら選び直せるように）
+            Assert.Equal("似た曲", (string)JObject.Parse(JsonConvert.SerializeObject(japanese))["label"]["ja"]);
         }
 
         [Fact]

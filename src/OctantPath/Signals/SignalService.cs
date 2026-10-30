@@ -94,13 +94,14 @@ namespace OctantPath.Signals
         public Dictionary<string, string> LastVotes() => _log?.Votes() ?? new Dictionary<string, string>();
 
         // 推薦のその後の出来事（shown、downloaded など）
-        public void RecordRecommendation(string requestId, string preset, string hash, string characteristic, string difficulty, string stage)
+        public void RecordRecommendation(string requestId, string preset, string hand, string hash, string characteristic, string difficulty, string stage)
         {
             Record(new SignalEvent
             {
                 Type = SignalTypes.Recommendation,
                 RequestId = requestId,
                 Preset = preset,
+                Hand = hand,
                 Hash = MapHash.Normalize(hash),
                 Characteristic = characteristic,
                 Difficulty = difficulty,

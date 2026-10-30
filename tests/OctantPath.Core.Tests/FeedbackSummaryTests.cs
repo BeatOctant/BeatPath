@@ -22,21 +22,29 @@ namespace OctantPath.Core.Tests
         };
 
         [Fact]
-        public void CountsEachTypeFromShownToCleared()
+        public void CountsEachTypeFromShownToLiked()
         {
             var events = new List<SignalEvent>
             {
                 Play("aa", PlayResults.Clear, -5),
+                new SignalEvent { Type = SignalTypes.Like, Hash = "bb", Source = "PlayerData", At = T0.AddMinutes(-5) },
                 Rec("r1", "song", "aa", "shown", 0),
                 Rec("r1", "song", "bb", "shown", 0),
+                Rec("r1", "song", "dd", "shown", 0),
                 Rec("r1", "song", "aa", "downloaded", 1),
+                Rec("r1", "song", "dd", "skipped", 1),
                 Play("aa", PlayResults.Clear, 2),
                 Play("aa", PlayResults.Fail, 3),
+                Play("aa", PlayResults.Quit, 4),
+                new SignalEvent { Type = SignalTypes.Upvote, Hash = "aa", At = T0.AddMinutes(5) },
                 Rec("r2", null, "cc", "shown", 4),
+                Rec("r3", "song", "ee", "shown", 6),
             };
             var text = FeedbackSummary.Build(new List<RecommendationRecord>(), events, "0.0.3", T0.AddHours(1));
-            Assert.Contains("| song | 1 | 2 | 0 | 1 | 0 | 1 | 1 |", text);
-            Assert.Contains($"| {FeedbackSummary.UnknownPreset} | 1 | 1 | 0 | 0 | 0 | 0 | 0 |", text);
+            // requests 2, created 1, shown 4, selected 0, downloaded 1, skipped 1, skip rate 1 of 2, played 1, cleared 1, quit 1, liked 1
+            // (the like on bb from before OctantPath is an import, not a reaction)
+            Assert.Contains("| song | 2 | 1 | 4 | 0 | 1 | 1 | 50% | 1 | 1 | 1 | 1 |", text);
+            Assert.Contains($"| {FeedbackSummary.UnknownPreset} | 1 | 0 | 1 | 0 | 0 | 0 | - | 0 | 0 | 0 | 0 |", text);
         }
 
         [Fact]
@@ -51,7 +59,7 @@ namespace OctantPath.Core.Tests
                 },
             };
             var text = FeedbackSummary.Build(records, new List<SignalEvent> { Rec("r1", null, "aa", "shown", 0) }, "0.0.3", T0.AddHours(1));
-            Assert.Contains("| chart | 1 | 1 |", text);
+            Assert.Contains("| chart | 1 | 0 | 1 |", text);
             Assert.Contains("- #1 1a2b 'Song' - A [M] Standard Hard · shown", text);
         }
 

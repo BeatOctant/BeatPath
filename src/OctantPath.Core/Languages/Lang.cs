@@ -177,6 +177,25 @@ namespace OctantPath.Core.Languages
             return text.ToString(Formatting.None);
         }
 
+        // {キー: 文字列か {言語: 文字列}} を、キーごとに今の言語の文字列にする（Pick）。値が空のキーは落とす。map でなければ null
+        public static Dictionary<string, string> PickEach(JToken map)
+        {
+            if (!(map is JObject texts))
+            {
+                return null;
+            }
+            var picked = new Dictionary<string, string>();
+            foreach (var p in texts.Properties())
+            {
+                var text = Pick(p.Value);
+                if (!string.IsNullOrEmpty(text))
+                {
+                    picked[p.Name] = text;
+                }
+            }
+            return picked;
+        }
+
         // キーの一覧（テストで、言語どうしの抜けを確かめる）
         public static Dictionary<string, string> Bundle(string language) => ReadEmbedded(language) ?? new Dictionary<string, string>();
 
@@ -227,16 +246,5 @@ namespace OctantPath.Core.Languages
             JObject.Parse(json).Properties()
                 .Where(p => !p.Name.StartsWith("_", StringComparison.Ordinal) && p.Value.Type == JTokenType.String)
                 .ToDictionary(p => p.Name, p => (string)p.Value, StringComparer.Ordinal);
-    }
-
-    // 外から来る表示名を、文字列か {言語: 文字列} のどちらでも読み、今の言語の文字列にする
-    public sealed class LangTextConverter : JsonConverter
-    {
-        public override bool CanConvert(Type objectType) => objectType == typeof(string);
-
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer) =>
-            Lang.Pick(JToken.Load(reader));
-
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer) => writer.WriteValue((string)value);
     }
 }

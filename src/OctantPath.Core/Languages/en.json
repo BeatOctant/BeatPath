@@ -176,7 +176,7 @@
   "settings.exportSummary": "Write recommendation summary",
   "settings.exportSummaryDone": "Written to {path}",
   "settings.exportSummaryFailed": "Could not write the summary: {error}",
-  "settings.exportSummaryHint": "Writes a summary of the recommendations (per type: shown, downloaded, played, cleared) to UserData/OctantPath/summaries. Nothing is sent",
+  "settings.exportSummaryHint": "Writes a summary of the recommendations (per type: shown, skipped, downloaded, played, cleared, liked) to UserData/OctantPath/summaries. Nothing is sent",
   "settings.gigabytes": "{value} GB",
   "settings.language": "Language",
   "settings.languageAuto": "Auto ({language})",

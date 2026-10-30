@@ -68,6 +68,23 @@ namespace OctantPath.Core.Tests
         }
 
         [Fact]
+        public void NamesTheGenreWordTheHandChoseByItsLabelOrTheWordItself()
+        {
+            var preset = JsonConvert.DeserializeObject<Preset>(@"{""id"":""your_genre"",""label"":""Your genre"",""genreLabels"":{""jazz music"":""Jazz""}}");
+            Assert.Equal("Jazz", preset.GenreLabels["jazz music"]);
+            CandidateReason Reason(string genre, string hand = null) => new CandidateReason { Genre = genre, Hand = hand };
+            Assert.Equal("Jazz", PresetRules.GenreName(preset, new[] { Reason("jazz music"), Reason("jazz music") }));
+            Assert.Equal("techno music", PresetRules.GenreName(preset, new[] { Reason("techno music") }));
+            // 語がない・語が揃わない・手札を混ぜた・候補がない、のときは出さない
+            Assert.Null(PresetRules.GenreName(preset, new[] { Reason(null) }));
+            Assert.Null(PresetRules.GenreName(preset, new[] { Reason("jazz music"), Reason("techno music") }));
+            Assert.Null(PresetRules.GenreName(preset, new[] { Reason("jazz music"), Reason(null) }));
+            Assert.Null(PresetRules.GenreName(preset, new[] { Reason("jazz music", "your_genre") }));
+            Assert.Null(PresetRules.GenreName(preset, new CandidateReason[0]));
+            Assert.Equal("jazz music", PresetRules.GenreName(new Preset(), new[] { Reason("jazz music") }));
+        }
+
+        [Fact]
         public void SendsTheSeedOnlyForPresetsThatUseIt()
         {
             var seed = new ChartRef { Hash = "1111111111111111111111111111111111111111", Characteristic = "Standard", Difficulty = "Expert" };

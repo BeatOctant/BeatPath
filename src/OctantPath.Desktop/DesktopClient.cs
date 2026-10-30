@@ -228,7 +228,7 @@ namespace OctantPath.Desktop
             {
                 Preset = preset,
                 Choices = choices,
-                ChoiceLabel = (string)body["choiceLabel"],
+                ChoiceLabel = (string)body["choiceLabel"] ?? PresetRules.GenreName(preset, result.Items.Select(i => i.Candidate.Reason)),
                 Seed = request.Seed,
                 SeedLabel = request.Seed != null ? _seed?.Label : null,
                 Mix = new MixDraft<RecommendationItem>(displayable, draftCount),

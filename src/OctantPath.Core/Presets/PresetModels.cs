@@ -15,16 +15,27 @@ namespace OctantPath.Core.Presets
     }
 
     // 表示名（label・hint・group と入力・選択肢の label）は、文字列か {言語: 文字列}（2026-10-11）。
-    // 読むときに今の言語の文字列にする（Lang.Pick）
+    // 受け取ったままの形で持ち、引くたびに今の言語の文字列にする（Lang.Pick）。読むときに決めていたので、
+    // 一覧を取り直すまで言語を変えても手札の名前が前の言語のままだった（2026-10-30）
     public sealed class Preset
     {
         [JsonProperty("id")] public string Id { get; set; }
-        [JsonProperty("label"), JsonConverter(typeof(LangTextConverter))] public string Label { get; set; }
-        [JsonProperty("hint"), JsonConverter(typeof(LangTextConverter))] public string Hint { get; set; }
+        [JsonProperty("label")] private JToken LabelText { get; set; }
+        [JsonProperty("hint")] private JToken HintText { get; set; }
 
         // 任意。ボタンをまとめる見出し（曲・譜面など）。手札に付いてくる（契約3（OctantPath to OctantCompass）の Preset の group）
-        [JsonProperty("group"), JsonConverter(typeof(LangTextConverter))] public string Group { get; set; }
+        [JsonProperty("group")] private JToken GroupText { get; set; }
         [JsonProperty("inputs")] public List<PresetInput> Inputs { get; set; } = new List<PresetInput>();
+
+        // 任意。手札が履歴から語を選ぶとき（OctantVector の genreFrom）の、語ごとの表示名（語: 文字列か {言語: 文字列}）
+        [JsonProperty("genreLabels")] private JToken GenreLabelTexts { get; set; }
+
+        [JsonIgnore] public string Label { get => Lang.Pick(LabelText); set => LabelText = value; }
+        [JsonIgnore] public string Hint { get => Lang.Pick(HintText); set => HintText = value; }
+        [JsonIgnore] public string Group { get => Lang.Pick(GroupText); set => GroupText = value; }
+
+        // 語ごとの、今の言語の表示名。値が空の語は落とす。genreLabels がなければ null
+        [JsonIgnore] public Dictionary<string, string> GenreLabels => Lang.PickEach(GenreLabelTexts);
     }
 
     public sealed class PresetInput
@@ -35,14 +46,18 @@ namespace OctantPath.Core.Presets
         [JsonProperty("kind")] public string Kind { get; set; }
         [JsonProperty("optional")] public bool Optional { get; set; }
         [JsonProperty("name")] public string Name { get; set; }
-        [JsonProperty("label"), JsonConverter(typeof(LangTextConverter))] public string Label { get; set; }
+        [JsonProperty("label")] private JToken LabelText { get; set; }
         [JsonProperty("options")] public List<PresetOption> Options { get; set; } = new List<PresetOption>();
+
+        [JsonIgnore] public string Label { get => Lang.Pick(LabelText); set => LabelText = value; }
     }
 
     public sealed class PresetOption
     {
         [JsonProperty("value")] public string Value { get; set; }
-        [JsonProperty("label"), JsonConverter(typeof(LangTextConverter))] public string Label { get; set; }
+        [JsonProperty("label")] private JToken LabelText { get; set; }
+
+        [JsonIgnore] public string Label { get => Lang.Pick(LabelText); set => LabelText = value; }
     }
 
     // 一覧をボタンにするときの決まり。並びは OctantCompass の返した順のまま
@@ -88,6 +103,18 @@ namespace OctantPath.Core.Presets
             (presets ?? Enumerable.Empty<Preset>()).Where(p => IsShown(p, hasSeedContext)).ToList();
 
         public static bool NeedsSeed(Preset preset) => preset.Inputs?.Any(i => i.Kind == PresetInput.Seed && !i.Optional) == true;
+
+        // 手札が選んだジャンルの語の表示名（下見の見出しに「手札名: これ」と出す）。
+        // どの候補も同じ語で絞られ、手札を混ぜていないときだけ。表示名がなければ語のまま。それ以外は null
+        public static string GenreName(Preset preset, IEnumerable<CandidateReason> reasons)
+        {
+            var words = (reasons ?? Enumerable.Empty<CandidateReason>()).Select(r => r == null || r.Hand != null ? null : r.Genre).Distinct().ToList();
+            if (words.Count != 1 || string.IsNullOrEmpty(words[0]))
+            {
+                return null;
+            }
+            return preset?.GenreLabels != null && preset.GenreLabels.TryGetValue(words[0], out var name) && !string.IsNullOrEmpty(name) ? name : words[0];
+        }
 
         public static bool UsesSeed(Preset preset) => preset.Inputs?.Any(i => i.Kind == PresetInput.Seed) == true;
 

@@ -250,7 +250,7 @@ namespace OctantPath.Maps
                 }
                 if (map.Frame != null)
                 {
-                    _signals.RecordRecommendation(map.Frame.RequestId, map.Frame.Preset, map.Hash, map.Frame.Characteristic, map.Frame.Difficulty, "downloaded");
+                    _signals.RecordRecommendation(map.Frame.RequestId, map.Frame.Preset, map.Frame.Hand, map.Hash, map.Frame.Characteristic, map.Frame.Difficulty, "downloaded");
                 }
                 done.Add(map);
                 confirmed++;
@@ -272,6 +272,7 @@ namespace OctantPath.Maps
             Frame = frameId,
             RequestId = item.RequestId,
             Preset = item.Preset,
+            Hand = item.Candidate.Reason?.Hand,
             Characteristic = item.Candidate.Characteristic,
             Difficulty = item.Candidate.Difficulty,
             At = at,

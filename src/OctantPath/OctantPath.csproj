@@ -6,7 +6,7 @@
     <Nullable>disable</Nullable>
     <AssemblyName>OctantPath</AssemblyName>
     <RootNamespace>OctantPath</RootNamespace>
-    <Version>0.1.2</Version>
+    <Version>0.1.3</Version>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <DebugType>portable</DebugType>

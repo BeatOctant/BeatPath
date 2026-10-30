@@ -13,6 +13,8 @@ namespace OctantPath.Core.Signals
         [JsonProperty("requestId", NullValueHandling = NullValueHandling.Ignore)] public string RequestId { get; set; }
         // recommendation の、元の要求で使ったプリセットの id（任意。契約3 の 1.2 で足された）。OctantCompass のキャッシュを失っても、どの手札の推薦か分かるように入れる（2026-10-16）
         [JsonProperty("preset", NullValueHandling = NullValueHandling.Ignore)] public string Preset { get; set; }
+        // recommendation の、その譜面を出した手札の id（任意）。「おまかせ」のように複数の手札を混ぜた推薦では preset と違う。候補の reason.hand をそのまま入れる。OctantVector が手札ごとの反応を数えるのに使う（2026-10-29）
+        [JsonProperty("hand", NullValueHandling = NullValueHandling.Ignore)] public string Hand { get; set; }
         [JsonProperty("hash")] public string Hash { get; set; }
         [JsonProperty("characteristic", NullValueHandling = NullValueHandling.Ignore)] public string Characteristic { get; set; }
         [JsonProperty("difficulty", NullValueHandling = NullValueHandling.Ignore)] public string Difficulty { get; set; }

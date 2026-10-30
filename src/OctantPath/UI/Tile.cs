@@ -36,6 +36,43 @@ namespace OctantPath.UI
             }
         }
 
+        // 文字の欄の、板の左右の縁からの空き
+        private const float TextInset = 2f;
+
+        // 文字の欄の幅（UI の単位）
+        private float _textWidth;
+
+        // 名前と説明の 2 列（説明がなければ名前だけ）。説明は欄の幅の split（0〜1）の位置から始める（<pos>）。名前が gap を残して列に入りきらなければ、
+        // 末尾を「…」にして詰め、説明に重ねない（手札の名前が長いと説明にかぶった。2026-10-30）。説明も入りきらなければ「…」で切る。
+        // 幅は今の文字の大きさ（自動で縮める前の大きさ）で測る
+        public void SetColumns(string name, float nameScale, string hint, float hintScale, string hintColor, float split, float gap)
+        {
+            if (Text == null)
+            {
+                return;
+            }
+            string Name(string n) => $"<size={Percent(nameScale)}>{n}</size>";
+            // 説明がなければ名前は欄いっぱいまで使う
+            var column = string.IsNullOrEmpty(hint) ? _textWidth : _textWidth * split - gap;
+            var fitted = name ?? "";
+            if (column > 0f && Width(Name(fitted)) > column)
+            {
+                var elements = new System.Globalization.StringInfo(fitted);
+                var count = elements.LengthInTextElements;
+                while (count > 1 && Width(Name(elements.SubstringByTextElements(0, count - 1).TrimEnd() + "…")) > column)
+                {
+                    count--;
+                }
+                fitted = elements.SubstringByTextElements(0, Math.Max(count - 1, 1)).TrimEnd() + "…";
+            }
+            Text.overflowMode = TextOverflowModes.Ellipsis;
+            Text.text = Name(fitted) + (string.IsNullOrEmpty(hint) ? "" : $"<pos={Percent(split)}><size={Percent(hintScale)}><color={hintColor}>{hint}</color></size>");
+        }
+
+        private float Width(string markup) => Text.GetPreferredValues(markup, float.PositiveInfinity, float.PositiveInfinity).x;
+
+        private static string Percent(float ratio) => (ratio * 100f).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%";
+
         // parent に置く。width・height は UI の単位。アイコンは出さない。backing は板の裏に敷く黒の濃さ（0 で敷かない）
         // 名前が長いときに小さくする下限
         private const float MinFontSize = 2.4f;
@@ -43,6 +80,7 @@ namespace OctantPath.UI
         public static Tile Create(GameObject parent, string text, float width, float height, Action click, TextAlignmentOptions alignment = TextAlignmentOptions.Center, float fontSize = 3.6f, string hint = null, float backing = 0f)
         {
             var tile = new Tile(click);
+            tile._textWidth = width - 2 * TextInset;
             var hintAttribute = string.IsNullOrEmpty(hint) ? "" : $" hover-hint='{System.Security.SecurityElement.Escape(hint)}'";
             BeatSaberMarkupLanguage.BSMLParser.Instance.Parse($"<modifier id='tile'{hintAttribute}/>", parent, tile);
             var go = tile._object;
@@ -71,8 +109,8 @@ namespace OctantPath.UI
                 var nameRect = (RectTransform)name;
                 nameRect.anchorMin = Vector2.zero;
                 nameRect.anchorMax = Vector2.one;
-                nameRect.offsetMin = new Vector2(2f, 0.5f);
-                nameRect.offsetMax = new Vector2(-2f, -0.5f);
+                nameRect.offsetMin = new Vector2(TextInset, 0.5f);
+                nameRect.offsetMax = new Vector2(-TextInset, -0.5f);
             }
             foreach (var localized in go.GetComponentsInChildren<BGLib.Polyglot.LocalizedTextMeshProUGUI>(true))
             {

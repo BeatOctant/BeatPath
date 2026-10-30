@@ -37,6 +37,8 @@ namespace OctantPath.Core.Maps
         [JsonProperty("requestId")] public string RequestId { get; set; }
         // 推薦の要求で使った手札の id。取得を確かめたときの recommendation の signal に入れる
         [JsonProperty("preset", NullValueHandling = NullValueHandling.Ignore)] public string Preset { get; set; }
+        // その譜面を出した手札の id（混ぜた推薦のとき。候補の reason.hand）。同じく signal に入れる
+        [JsonProperty("hand", NullValueHandling = NullValueHandling.Ignore)] public string Hand { get; set; }
         [JsonProperty("characteristic")] public string Characteristic { get; set; }
         [JsonProperty("difficulty")] public string Difficulty { get; set; }
         [JsonProperty("at")] public DateTime At { get; set; }

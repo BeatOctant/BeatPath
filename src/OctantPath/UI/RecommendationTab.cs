@@ -153,6 +153,20 @@ namespace OctantPath.UI
             }
         }
 
+        // 小窓の中の説明（hover-hint）を小窓の前に出す。ゲームは説明の板を、Canvas と ScreenBase を両方持つ親（画面）の子にして出す
+        // （HMUI の HoverHintController.GetScreenTransformForHoverHint）。小窓は自分の Canvas で画面より前に描く（BSML の FixModalBlockerLayer）ので、
+        // 説明が小窓の裏に隠れた（下見の行の ↓・-・⇔ など。2026-10-30）。小窓に ScreenBase（中身のない印）を付けて、説明を小窓の子にする
+        private void RaiseModalHints()
+        {
+            foreach (var modal in new[] { _choiceModal, _draftModal })
+            {
+                if (modal != null && modal.GetComponent<ScreenBase>() == null)
+                {
+                    modal.gameObject.AddComponent<ScreenBase>();
+                }
+            }
+        }
+
         private string _toastText = "";
         private int _toastId;
 
@@ -262,12 +276,16 @@ namespace OctantPath.UI
         private void AddHeading(string text)
         {
             var label = BeatSaberMarkupLanguage.BeatSaberUI.CreateText((UnityEngine.RectTransform)_choiceGrid.transform, text, UnityEngine.Vector2.zero, new UnityEngine.Vector2(Core.UI.Popups.ChoiceTileWidth, Core.UI.Popups.ChoiceHeadingHeight));
-            label.fontSize = 3.2f;
+            label.fontSize = Core.UI.Popups.ChoiceHeadingFontSize;
             label.alignment = TMPro.TextAlignmentOptions.BottomLeft;
             label.color = new UnityEngine.Color(0.75f, 0.85f, 1f, 1f);
             // 見出しは押下を受けない（下のタイルの押せる範囲を取らない）
             label.raycastTarget = false;
         }
+
+        // 種類のタイルの説明の始まり（欄の幅の割合）と、名前の列と説明の間に最低限あける幅（UI の単位。推測で決めた値）
+        private const float ChoiceHintColumn = 0.34f;
+        private const float ChoiceColumnGap = 1.5f;
 
         // 種類の小窓のタイル（ゲームの丸いボタン）。上に大きく名前、下に小さく説明
         private void ShowTiles(List<(string Label, string Hint, bool Enabled)> tiles) => ShowTiles(tiles, null);
@@ -286,7 +304,7 @@ namespace OctantPath.UI
             // 1 列に並べる。名前の列と説明の列の区切りを縦にそろえる（<pos> で説明の始まりを固定）。
             // タイルは下見の行と同じ高さで、小窓に入りきらない分はスクロールでめくる
             var height = Core.UI.Popups.ChoiceTileHeight;
-            var fontSize = 3.6f;
+            var fontSize = Core.UI.Popups.ChoiceTileFontSize;
             for (var i = 0; i < tiles.Count; i++)
             {
                 var index = i;
@@ -296,10 +314,11 @@ namespace OctantPath.UI
                 {
                     AddHeading(group);
                 }
-                var text = $"<size=115%>{tile.Label}</size>" + (string.IsNullOrEmpty(tile.Hint) ? "" : $"<pos=34%><size=80%><color=#BBBBBB>{tile.Hint}</color></size>");
                 try
                 {
-                    var made = Tile.Create(_choiceGrid, text, Core.UI.Popups.ChoiceTileWidth, height, () => ChoiceSelect(null, index), TMPro.TextAlignmentOptions.Left, fontSize);
+                    var made = Tile.Create(_choiceGrid, tile.Label, Core.UI.Popups.ChoiceTileWidth, height, () => ChoiceSelect(null, index), TMPro.TextAlignmentOptions.Left, fontSize);
+                    // 名前の列は欄の 34% まで。長い名前は「…」で詰めて、説明にかぶせない
+                    made.SetColumns(tile.Label, 1.1f, tile.Hint, 0.8f, "#BBBBBB", ChoiceHintColumn, ChoiceColumnGap);
                     made.Interactable = tile.Enabled;
                 }
                 catch (Exception ex)
@@ -859,6 +878,7 @@ namespace OctantPath.UI
                 // 種類の小窓をこの画面（中央）に置く
                 _parserParams = BeatSaberMarkupLanguage.BSMLParser.Instance.Parse(Lang.Fill(ChoiceModalBsml), _levelDetail.gameObject, this);
                 DrawPopupFrames();
+                RaiseModalHints();
                 SharpenBackPlates();
                 PanelLook.Brighten(_progressTrack);
                 PanelLook.Brighten(_progressFill);
@@ -1369,7 +1389,7 @@ namespace OctantPath.UI
                     return;
                 }
                 _draftPreset = preset;
-                _draftChoiceLabel = choiceLabel;
+                _draftChoiceLabel = choiceLabel ?? PresetRules.GenreName(preset, result.Items.Select(i => i.Candidate.Reason));
                 var displayable = RecommendationDisplay.Shown(result.Items);
                 if (displayable.Count < result.Items.Count)
                 {
@@ -1384,7 +1404,7 @@ namespace OctantPath.UI
                 FillDraftList();
                 foreach (var shown in _draft.Picked)
                 {
-                    _signals.RecordRecommendation(shown.RequestId, shown.Preset, shown.Hash, shown.Candidate.Characteristic, shown.Candidate.Difficulty, "shown");
+                    _signals.RecordRecommendation(shown.RequestId, shown.Preset, shown.Candidate.Reason?.Hand, shown.Hash, shown.Candidate.Characteristic, shown.Candidate.Difficulty, "shown");
                 }
                 _ = LoadDraftCoversAsync();
                 // 1 曲目の試聴をすぐ流し、取り終えたら残りの曲の試聴を先読みする
@@ -1467,7 +1487,7 @@ namespace OctantPath.UI
                 _draftMessage = outcome == null ? Lang.T("download.notWhilePlaying") : outcome.Error != null ? Lang.T("download.failed", new { error = outcome.Error }) : Lang.T("item.downloadedTitle", new { title = item.Title });
                 if (outcome != null && outcome.Error == null)
                 {
-                    _signals.RecordRecommendation(item.RequestId, item.Preset, item.Hash, item.Candidate.Characteristic, item.Candidate.Difficulty, "selected");
+                    _signals.RecordRecommendation(item.RequestId, item.Preset, item.Candidate.Reason?.Hand, item.Hash, item.Candidate.Characteristic, item.Candidate.Difficulty, "selected");
                 }
             }
             catch (OperationCanceledException)
@@ -1570,7 +1590,7 @@ namespace OctantPath.UI
             {
                 return;
             }
-            _signals.RecordRecommendation(removed.RequestId, removed.Preset, removed.Hash, removed.Candidate.Characteristic, removed.Candidate.Difficulty, "skipped");
+            _signals.RecordRecommendation(removed.RequestId, removed.Preset, removed.Candidate.Reason?.Hand, removed.Hash, removed.Candidate.Characteristic, removed.Candidate.Difficulty, "skipped");
             if (removed == _draftSelected)
             {
                 _draftSelected = null;
@@ -1602,7 +1622,7 @@ namespace OctantPath.UI
                 }
                 return;
             }
-            _signals.RecordRecommendation(added.RequestId, added.Preset, added.Hash, added.Candidate.Characteristic, added.Candidate.Difficulty, "shown");
+            _signals.RecordRecommendation(added.RequestId, added.Preset, added.Candidate.Reason?.Hand, added.Hash, added.Candidate.Characteristic, added.Candidate.Difficulty, "shown");
             _draftSelected = added;
             _draftMessage = "";
             if (added.Version?.PreviewUrl != null)
@@ -1671,10 +1691,10 @@ namespace OctantPath.UI
             }
             var wasSelected = removed == _draftSelected;
             var next = _draft.Replace(removed);
-            _signals.RecordRecommendation(removed.RequestId, removed.Preset, removed.Hash, removed.Candidate.Characteristic, removed.Candidate.Difficulty, "skipped");
+            _signals.RecordRecommendation(removed.RequestId, removed.Preset, removed.Candidate.Reason?.Hand, removed.Hash, removed.Candidate.Characteristic, removed.Candidate.Difficulty, "skipped");
             if (next != null)
             {
-                _signals.RecordRecommendation(next.RequestId, next.Preset, next.Hash, next.Candidate.Characteristic, next.Candidate.Difficulty, "shown");
+                _signals.RecordRecommendation(next.RequestId, next.Preset, next.Candidate.Reason?.Hand, next.Hash, next.Candidate.Characteristic, next.Candidate.Difficulty, "shown");
             }
             // 入れ替えた曲を選んだ状態にして、その試聴をすぐ流す
             _draftSelected = next;
@@ -1993,18 +2013,33 @@ namespace OctantPath.UI
         [UIComponent("ceiling-label")]
         private ClickableText _ceilingLabel;
 
+        // 浮かぶ板の上限の札。下見の小窓が開いていれば、下見のボタンと同じく下見を取り直す（2026-10-30）
         [UIAction("ceiling-click")]
         private void CeilingClick()
         {
-            _settingsHolder.Save("difficultyCeiling", !_settingsHolder.Current.DifficultyCeiling);
-            ShowCeiling();
+            ToggleCeiling();
+            if (_draftModal != null && _draftModal.gameObject.activeInHierarchy)
+            {
+                RedrawDraft();
+            }
         }
 
         // 下見の小窓のボタン: 切り替えて、同じ種類・選択肢で下見を取り直す（今の起点で）
         [UIAction("draft-ceiling")]
         private void DraftCeiling()
         {
-            CeilingClick();
+            ToggleCeiling();
+            RedrawDraft();
+        }
+
+        private void ToggleCeiling()
+        {
+            _settingsHolder.Save("difficultyCeiling", !_settingsHolder.Current.DifficultyCeiling);
+            ShowCeiling();
+        }
+
+        private void RedrawDraft()
+        {
             if (_draftPreset != null && !_busy)
             {
                 _preview.Stop();
@@ -2113,7 +2148,7 @@ namespace OctantPath.UI
                 }
                 foreach (var item in items)
                 {
-                    _signals.RecordRecommendation(item.RequestId, item.Preset, item.Hash, item.Candidate.Characteristic, item.Candidate.Difficulty, "shown");
+                    _signals.RecordRecommendation(item.RequestId, item.Preset, item.Candidate.Reason?.Hand, item.Hash, item.Candidate.Characteristic, item.Candidate.Difficulty, "shown");
                 }
                 // 選ばなければ進む曲。ミックスのプレイリストで遊んだときだけ進む
                 var next = _playedInMix != null && _settingsHolder.Current.MixAutoAdvance ? _mix?.Next() : null;
@@ -2141,7 +2176,7 @@ namespace OctantPath.UI
             {
                 return;
             }
-            _signals.RecordRecommendation(item.RequestId, item.Preset, item.Hash, item.Candidate.Characteristic, item.Candidate.Difficulty, "selected");
+            _signals.RecordRecommendation(item.RequestId, item.Preset, item.Candidate.Reason?.Hand, item.Hash, item.Candidate.Characteristic, item.Candidate.Difficulty, "selected");
             // ミックスのプレイリストで遊んだ曲のときだけ、ミックスに入れる。ほかの一覧で遊んだときは、その一覧で選ぶだけ（AdvanceAsync）
             if (_mix != null && _playedInMix != null)
             {

@@ -7,7 +7,7 @@
     <RootNamespace>OctantPath.Desktop</RootNamespace>
     <InvariantGlobalization>true</InvariantGlobalization>
     <!-- MOD（src/OctantPath/OctantPath.csproj）と同じ版。画面の名前の横に、版と git のコミットを出す -->
-    <Version>0.1.2</Version>
+    <Version>0.1.3</Version>
   </PropertyGroup>
 
   <ItemGroup>

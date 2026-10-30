@@ -175,7 +175,7 @@
   "settings.exportSummary": "推薦のまとめを書き出す",
   "settings.exportSummaryDone": "{path} に書きました",
   "settings.exportSummaryFailed": "まとめを書けませんでした: {error}",
-  "settings.exportSummaryHint": "推薦のまとめ（手札ごとの表示・取得・プレイ・クリアの数と、最近の推薦）を UserData/OctantPath/summaries に書く。どこへも送らない",
+  "settings.exportSummaryHint": "推薦のまとめ（手札ごとの表示・外した・取得・プレイ・クリア・好意の数と、最近の推薦）を UserData/OctantPath/summaries に書く。どこへも送らない",
   "settings.gigabytes": "{value} GB",
   "settings.language": "言語",
   "settings.languageAuto": "自動（{language}）",

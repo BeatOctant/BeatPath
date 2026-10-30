@@ -80,6 +80,10 @@ namespace OctantPath.Core.Recommendations
     {
         [JsonProperty("views")] public Dictionary<string, double> Views { get; set; }
         [JsonProperty("difficulty")] public DifficultyReason Difficulty { get; set; }
+        // 複数の手札を混ぜた推薦（OctantVector の扱い方 mixed）で、その候補を出した手札の id。それ以外は null
+        [JsonProperty("hand", NullValueHandling = NullValueHandling.Ignore)] public string Hand { get; set; }
+        // 手札が履歴から選んだジャンルの語（OctantVector の genreFrom）で絞ったときの、その語。それ以外は null
+        [JsonProperty("genre", NullValueHandling = NullValueHandling.Ignore)] public string Genre { get; set; }
     }
 
     public sealed class DifficultyReason
